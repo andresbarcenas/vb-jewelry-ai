@@ -1,12 +1,5 @@
 import { productLibraryItems as defaultProducts } from "@/data/mock-studio";
 import type { ProductLibraryItem } from "@/types/studio";
-import {
-  readPersistedValue,
-  resetPersistedValue,
-  writePersistedValue,
-} from "@/lib/services/mock-persistence";
-
-const STORAGE_KEY = "vb-jewelry-ai.service.products";
 
 function cleanString(value: unknown, fallback: string) {
   return typeof value === "string" ? value.trim() : fallback;
@@ -97,11 +90,6 @@ async function requestJson<T>(input: string, init?: RequestInit): Promise<T | nu
   }
 }
 
-async function persistProducts(nextProducts: ProductLibraryItem[]) {
-  const normalized = normalizeProducts(nextProducts, defaultProducts);
-  return writePersistedValue(STORAGE_KEY, normalized);
-}
-
 export async function listProducts(): Promise<ProductLibraryItem[]> {
   const fromApi = await requestJson<ProductLibraryItem[]>("/api/products");
 
@@ -109,8 +97,11 @@ export async function listProducts(): Promise<ProductLibraryItem[]> {
     return normalizeProducts(fromApi, defaultProducts);
   }
 
-  return readPersistedValue(STORAGE_KEY, defaultProducts, normalizeProducts);
+  return defaultProducts;
 }
+
+// Alias to match Phase 2C naming while preserving existing imports.
+export const getProducts = listProducts;
 
 export async function createProduct(product: ProductLibraryItem): Promise<ProductLibraryItem[]> {
   const candidate = normalizeProduct(product);
@@ -131,15 +122,7 @@ export async function createProduct(product: ProductLibraryItem): Promise<Produc
     return normalizeProducts(fromApi, defaultProducts);
   }
 
-  const current = await listProducts();
-
-  return persistProducts([
-    {
-      ...candidate,
-      id: candidate.id || createProductId(candidate.productName),
-    },
-    ...current,
-  ]);
+  return listProducts();
 }
 
 export async function updateProduct(product: ProductLibraryItem): Promise<ProductLibraryItem[]> {
@@ -158,11 +141,7 @@ export async function updateProduct(product: ProductLibraryItem): Promise<Produc
     return normalizeProducts(fromApi, defaultProducts);
   }
 
-  const current = await listProducts();
-
-  return persistProducts(
-    current.map((item) => (item.id === candidate.id ? candidate : item)),
-  );
+  return listProducts();
 }
 
 export async function deleteProduct(productId: string): Promise<ProductLibraryItem[]> {
@@ -174,8 +153,7 @@ export async function deleteProduct(productId: string): Promise<ProductLibraryIt
     return normalizeProducts(fromApi, defaultProducts);
   }
 
-  const current = await listProducts();
-  return persistProducts(current.filter((item) => item.id !== productId));
+  return listProducts();
 }
 
 export async function resetProducts(): Promise<ProductLibraryItem[]> {
@@ -187,5 +165,5 @@ export async function resetProducts(): Promise<ProductLibraryItem[]> {
     return normalizeProducts(fromApi, defaultProducts);
   }
 
-  return resetPersistedValue(STORAGE_KEY, defaultProducts);
+  return defaultProducts;
 }

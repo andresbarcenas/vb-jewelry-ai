@@ -119,6 +119,12 @@ docker compose exec web pnpm db:seed
 - `docs/backend-foundation-simple.md`
   Plain-English backend explanation for non-technical owners.
 
+- `docs/phase-2c.md`
+  Technical summary of the Phase 2C persistence migration for Brand, Personas, and Product Library.
+
+- `docs/phase-2c-simple.md`
+  Plain-English summary of what now persists in the database and what remains mocked.
+
 ## How mock data is wired
 
 1. Seed data starts in `src/data/mock-studio.ts`.

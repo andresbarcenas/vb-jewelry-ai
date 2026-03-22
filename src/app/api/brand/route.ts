@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   getBrandProfile,
-  saveBrandProfile,
+  updateBrandProfile,
 } from "@/lib/repositories/brand.repository";
 import type { BrandProfile } from "@/types/studio";
 
@@ -26,7 +26,7 @@ export async function GET() {
 export async function PUT(request: Request) {
   try {
     const payload = (await request.json()) as BrandProfile;
-    const brand = await saveBrandProfile(payload);
+    const brand = await updateBrandProfile(payload);
     return NextResponse.json(brand);
   } catch (error) {
     return NextResponse.json(

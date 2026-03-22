@@ -55,13 +55,13 @@ export async function getBrandProfile(): Promise<BrandProfile> {
   });
 
   if (!current) {
-    return saveBrandProfile(defaultBrandProfile);
+    return updateBrandProfile(defaultBrandProfile);
   }
 
   return normalizeBrandProfile(current, defaultBrandProfile);
 }
 
-export async function saveBrandProfile(profile: BrandProfile): Promise<BrandProfile> {
+export async function updateBrandProfile(profile: BrandProfile): Promise<BrandProfile> {
   const normalized = normalizeBrandProfile(profile, defaultBrandProfile);
   const existing = await prisma.brand.findFirst({
     select: {
@@ -86,6 +86,9 @@ export async function saveBrandProfile(profile: BrandProfile): Promise<BrandProf
   return normalizeBrandProfile(nextRecord, defaultBrandProfile);
 }
 
+// Backward-compatible alias while older UI imports are phased out.
+export const saveBrandProfile = updateBrandProfile;
+
 export async function resetBrandProfile(): Promise<BrandProfile> {
-  return saveBrandProfile(defaultBrandProfile);
+  return updateBrandProfile(defaultBrandProfile);
 }

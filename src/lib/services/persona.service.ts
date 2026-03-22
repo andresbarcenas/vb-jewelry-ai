@@ -5,13 +5,6 @@ import type {
   PersonaStatus,
   PersonaUseCaseTag,
 } from "@/types/studio";
-import {
-  readPersistedValue,
-  resetPersistedValue,
-  writePersistedValue,
-} from "@/lib/services/mock-persistence";
-
-const STORAGE_KEY = "vb-jewelry-ai.service.personas";
 const MAX_PERSONAS = 5;
 const PERSONA_USE_CASE_TAGS: PersonaUseCaseTag[] = [
   "everyday",
@@ -215,11 +208,6 @@ async function requestJson<T>(input: string, init?: RequestInit): Promise<T | nu
   }
 }
 
-async function persistPersonas(nextPersonas: AiPersonaProfile[]) {
-  const normalized = normalizePersonas(nextPersonas, defaultPersonas);
-  return writePersistedValue(STORAGE_KEY, normalized);
-}
-
 export async function listPersonas(): Promise<AiPersonaProfile[]> {
   const fromApi = await requestJson<AiPersonaProfile[]>("/api/personas");
 
@@ -227,8 +215,11 @@ export async function listPersonas(): Promise<AiPersonaProfile[]> {
     return normalizePersonas(fromApi, defaultPersonas);
   }
 
-  return readPersistedValue(STORAGE_KEY, defaultPersonas, normalizePersonas);
+  return defaultPersonas;
 }
+
+// Alias to match Phase 2C naming while preserving existing imports.
+export const getPersonas = listPersonas;
 
 export async function createPersona(persona: AiPersonaProfile): Promise<AiPersonaProfile[]> {
   const candidate = normalizePersona(persona);
@@ -249,19 +240,7 @@ export async function createPersona(persona: AiPersonaProfile): Promise<AiPerson
     return normalizePersonas(fromApi, defaultPersonas);
   }
 
-  const current = await listPersonas();
-
-  if (current.length >= MAX_PERSONAS) {
-    return current;
-  }
-
-  return persistPersonas([
-    ...current,
-    {
-      ...candidate,
-      id: candidate.id || createPersonaId(candidate.name),
-    },
-  ]);
+  return listPersonas();
 }
 
 export async function updatePersona(persona: AiPersonaProfile): Promise<AiPersonaProfile[]> {
@@ -280,11 +259,7 @@ export async function updatePersona(persona: AiPersonaProfile): Promise<AiPerson
     return normalizePersonas(fromApi, defaultPersonas);
   }
 
-  const current = await listPersonas();
-
-  return persistPersonas(
-    current.map((item) => (item.id === candidate.id ? candidate : item)),
-  );
+  return listPersonas();
 }
 
 export async function deletePersona(personaId: string): Promise<AiPersonaProfile[]> {
@@ -296,8 +271,7 @@ export async function deletePersona(personaId: string): Promise<AiPersonaProfile
     return normalizePersonas(fromApi, defaultPersonas);
   }
 
-  const current = await listPersonas();
-  return persistPersonas(current.filter((item) => item.id !== personaId));
+  return listPersonas();
 }
 
 export async function resetPersonas(): Promise<AiPersonaProfile[]> {
@@ -309,5 +283,5 @@ export async function resetPersonas(): Promise<AiPersonaProfile[]> {
     return normalizePersonas(fromApi, defaultPersonas);
   }
 
-  return resetPersistedValue(STORAGE_KEY, defaultPersonas);
+  return defaultPersonas;
 }

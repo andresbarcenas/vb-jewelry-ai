@@ -1,12 +1,5 @@
 import { brandProfile as defaultBrandProfile } from "@/data/mock-studio";
 import type { BrandProfile } from "@/types/studio";
-import {
-  readPersistedValue,
-  resetPersistedValue,
-  writePersistedValue,
-} from "@/lib/services/mock-persistence";
-
-const STORAGE_KEY = "vb-jewelry-ai.service.brand-profile";
 
 function cleanString(value: unknown, fallback: string) {
   return typeof value === "string" ? value.trim() : fallback;
@@ -81,10 +74,10 @@ export async function getBrandProfile(): Promise<BrandProfile> {
     return normalizeBrandProfile(fromApi, defaultBrandProfile);
   }
 
-  return readPersistedValue(STORAGE_KEY, defaultBrandProfile, normalizeBrandProfile);
+  return defaultBrandProfile;
 }
 
-export async function saveBrandProfile(nextProfile: BrandProfile): Promise<BrandProfile> {
+export async function updateBrandProfile(nextProfile: BrandProfile): Promise<BrandProfile> {
   const normalized = normalizeBrandProfile(nextProfile, defaultBrandProfile);
   const fromApi = await requestJson<BrandProfile>("/api/brand", {
     method: "PUT",
@@ -95,8 +88,11 @@ export async function saveBrandProfile(nextProfile: BrandProfile): Promise<Brand
     return normalizeBrandProfile(fromApi, defaultBrandProfile);
   }
 
-  return writePersistedValue(STORAGE_KEY, normalized);
+  return normalized;
 }
+
+// Backward-compatible alias while older UI imports are phased out.
+export const saveBrandProfile = updateBrandProfile;
 
 export async function resetBrandProfile(): Promise<BrandProfile> {
   const fromApi = await requestJson<BrandProfile>("/api/brand/reset", {
@@ -107,5 +103,5 @@ export async function resetBrandProfile(): Promise<BrandProfile> {
     return normalizeBrandProfile(fromApi, defaultBrandProfile);
   }
 
-  return resetPersistedValue(STORAGE_KEY, defaultBrandProfile);
+  return defaultBrandProfile;
 }
