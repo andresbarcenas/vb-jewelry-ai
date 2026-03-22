@@ -7,7 +7,7 @@ export default function BrandProfilePage() {
     <>
       <PageHeader
         title="Brand Profile"
-        description="The voice, guardrails, and creative direction that keep AI-assisted content aligned with VB Jewelry before anything goes into production."
+        description="A simple business-owner form for the brand basics the studio should follow before generating content ideas or campaign direction."
       />
       <BrandProfilePanel initialProfile={brandProfile} />
     </>

@@ -19,18 +19,13 @@ export interface NavItem {
 
 export interface BrandProfile {
   brandName: string;
-  focus: string;
-  audience: string;
-  voiceSummary: string;
-  toneKeywords: string[];
-  visualDirection: string[];
-  reelGoals: string[];
-  approvedCtas: string[];
-  forbiddenPhrases: string[];
-  contentGuardrails: string[];
-  preferredHooks: string[];
-  postingCadence: string;
-  productionNotes: string;
+  brandVoice: string;
+  targetCustomer: string;
+  styleKeywords: string[];
+  doNotUseList: string[];
+  preferredColors: string[];
+  productCategories: string[];
+  instagramHandle: string;
 }
 
 export interface Persona {

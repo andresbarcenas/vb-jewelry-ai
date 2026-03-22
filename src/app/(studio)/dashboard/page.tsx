@@ -144,16 +144,16 @@ export default function DashboardPage() {
         </SectionCard>
 
         <SectionCard
-          title="Brand guardrails"
-          description="A fast reminder of the tone and approval rules that should shape every concept."
+          title="Brand snapshot"
+          description="A quick reference for the core business profile the studio should follow while planning content."
         >
           <div className="space-y-5">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                Tone keywords
+                Style keywords
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
-                {brandProfile.toneKeywords.map((item) => (
+                {brandProfile.styleKeywords.map((item) => (
                   <span
                     key={item}
                     className="rounded-full bg-accent-soft px-3 py-1 text-xs font-semibold text-accent"
@@ -164,23 +164,40 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="grid gap-3">
-              {brandProfile.contentGuardrails.slice(0, 3).map((item) => (
-                <div
-                  key={item}
-                  className="rounded-[22px] border border-border/80 bg-white/75 px-4 py-3 text-sm leading-6 text-muted-foreground"
-                >
-                  {item}
-                </div>
-              ))}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="rounded-[22px] border border-border/80 bg-white/75 px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                  Preferred colors
+                </p>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  {brandProfile.preferredColors.join(", ")}
+                </p>
+              </div>
+              <div className="rounded-[22px] border border-border/80 bg-white/75 px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                  Product categories
+                </p>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  {brandProfile.productCategories.join(", ")}
+                </p>
+              </div>
             </div>
 
             <div className="rounded-[24px] border border-border/80 bg-accent-soft/35 p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                Approved CTA example
+                Do not use
               </p>
               <p className="mt-2 text-sm leading-6 text-foreground">
-                {brandProfile.approvedCtas[0]}
+                {brandProfile.doNotUseList.slice(0, 3).join(", ")}
+              </p>
+            </div>
+
+            <div className="rounded-[24px] border border-border/80 bg-white/75 p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                Instagram handle
+              </p>
+              <p className="mt-2 text-sm leading-6 text-foreground">
+                {brandProfile.instagramHandle}
               </p>
             </div>
           </div>

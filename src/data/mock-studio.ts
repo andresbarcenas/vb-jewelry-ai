@@ -13,43 +13,27 @@ import type {
 // All pages pull their placeholder content from here instead of hard-coding copy.
 export const brandProfile: BrandProfile = {
   brandName: "VB Jewelry",
-  focus: "Handmade jewelry that feels artistic, tactile, and quietly luxurious.",
-  audience:
-    "Style-aware women ages 25-44 who want statement details they can wear beyond special occasions.",
-  voiceSummary:
-    "Warm, polished, and observant. The brand should sound design-literate and inviting, never pushy or overly trendy.",
-  toneKeywords: ["Artful", "Grounded", "Refined", "Personal", "Never salesy"],
-  visualDirection: [
-    "Natural light and soft shadows",
-    "Hands in motion instead of static flat lays",
-    "Close-up texture moments that show craftsmanship",
-    "Clean styling with one hero piece per frame",
+  brandVoice:
+    "Warm, polished, and artful. The brand should feel personal and refined, never loud, rushed, or overly sales-focused.",
+  targetCustomer:
+    "Women who want handmade jewelry that feels special enough for an event but easy enough to wear with everyday outfits.",
+  styleKeywords: ["Artful", "Handmade", "Refined", "Warm", "Elevated"],
+  doNotUseList: [
+    "cheap",
+    "dupe",
+    "mass-produced",
+    "flash sale language",
+    "overly trendy slang",
   ],
-  reelGoals: [
-    "Turn product details into save-worthy styling inspiration",
-    "Show handmade quality in a way that feels effortless",
-    "Support capsule launches with repeatable Reel formats",
+  preferredColors: [
+    "Champagne",
+    "Soft sand",
+    "Muted sage",
+    "Cream",
+    "Warm gold",
   ],
-  approvedCtas: [
-    "Save this for your next styled look",
-    "Discover the details in the collection",
-    "Tap through for the full finish and fit",
-  ],
-  forbiddenPhrases: ["cheap", "dupe", "mass-produced", "flash sale", "must-have ASAP"],
-  contentGuardrails: [
-    "Avoid slang that will date quickly or make the brand feel reactive.",
-    "Keep captions elegant and clear even when the concept is playful.",
-    "Show at least one craftsmanship detail whenever product footage allows.",
-    "Only mention materials or plating claims that have already been approved.",
-  ],
-  preferredHooks: [
-    "The kind of detail that changes an outfit",
-    "If you like heirloom energy without the fuss",
-    "A closer look at the finish, texture, and movement",
-  ],
-  postingCadence: "3 to 4 Instagram Reels per week, supported by Stories cutdowns.",
-  productionNotes:
-    "Favor clean backgrounds, subtle hand movement, and intimate close-up framing over trend-heavy transitions.",
+  productCategories: ["Earrings", "Necklaces", "Rings", "Bracelets"],
+  instagramHandle: "@vbjewelry",
 };
 
 export const personas: Persona[] = [

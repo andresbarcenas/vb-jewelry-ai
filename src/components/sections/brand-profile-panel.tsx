@@ -1,22 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useSyncExternalStore } from "react";
 import { SectionCard } from "@/components/ui/section-card";
+import {
+  getBrandProfileSnapshot,
+  resetBrandProfileSnapshot,
+  saveBrandProfileSnapshot,
+  subscribeToBrandProfileStore,
+} from "@/lib/brand-profile-store";
 import type { BrandProfile } from "@/types/studio";
 
 interface BrandProfilePanelProps {
   initialProfile: BrandProfile;
 }
 
-const inputClasses =
-  "w-full rounded-2xl border border-border/80 bg-white/85 px-4 py-3 text-sm text-foreground outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/10";
-
-function splitLines(value: string) {
-  return value
-    .split("\n")
-    .map((item) => item.trim())
-    .filter(Boolean);
+interface FieldShellProps {
+  label: string;
+  helperText: string;
+  children: React.ReactNode;
 }
+
+const inputClasses =
+  "mt-2 w-full rounded-2xl border border-border/80 bg-white/85 px-4 py-3 text-sm text-foreground outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/10";
 
 function splitCommaList(value: string) {
   return value
@@ -25,288 +30,311 @@ function splitCommaList(value: string) {
     .filter(Boolean);
 }
 
+function splitLines(value: string) {
+  return value
+    .split("\n")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function joinList(items: string[]) {
+  if (items.length === 0) {
+    return "";
+  }
+
+  if (items.length === 1) {
+    return items[0];
+  }
+
+  if (items.length === 2) {
+    return `${items[0]} and ${items[1]}`;
+  }
+
+  return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
+}
+
+function formatHandle(handle: string) {
+  if (!handle.trim()) {
+    return "@yourbrand";
+  }
+
+  return handle.startsWith("@") ? handle : `@${handle}`;
+}
+
+function FieldShell({ label, helperText, children }: FieldShellProps) {
+  return (
+    <label className="block">
+      <span className="block text-sm font-semibold text-foreground">{label}</span>
+      <span className="mt-1 block text-sm leading-6 text-muted-foreground">
+        {helperText}
+      </span>
+      {children}
+    </label>
+  );
+}
+
+function buildBrandBrief(profile: BrandProfile) {
+  const brandName = profile.brandName || "This brand";
+  const handle = formatHandle(profile.instagramHandle);
+  const styleKeywords = joinList(profile.styleKeywords);
+  const colors = joinList(profile.preferredColors);
+  const categories = joinList(profile.productCategories);
+  const avoidTerms = joinList(profile.doNotUseList);
+
+  return `${brandName} appears on Instagram as ${handle}. It should sound ${profile.brandVoice} The target customer is ${profile.targetCustomer} The overall look should feel ${styleKeywords}. Feature colors like ${colors}, prioritize categories such as ${categories}, and avoid wording or angles like ${avoidTerms}.`;
+}
+
 export function BrandProfilePanel({ initialProfile }: BrandProfilePanelProps) {
-  // Local state keeps the screen editable-looking without requiring a database in v1.
-  const [form, setForm] = useState({
-    brandName: initialProfile.brandName,
-    focus: initialProfile.focus,
-    audience: initialProfile.audience,
-    voiceSummary: initialProfile.voiceSummary,
-    postingCadence: initialProfile.postingCadence,
-    productionNotes: initialProfile.productionNotes,
-    toneKeywords: initialProfile.toneKeywords.join(", "),
-    visualDirection: initialProfile.visualDirection.join("\n"),
-    reelGoals: initialProfile.reelGoals.join("\n"),
-    approvedCtas: initialProfile.approvedCtas.join("\n"),
-    forbiddenPhrases: initialProfile.forbiddenPhrases.join("\n"),
-    contentGuardrails: initialProfile.contentGuardrails.join("\n"),
-    preferredHooks: initialProfile.preferredHooks.join("\n"),
-  });
+  const form = useSyncExternalStore(
+    subscribeToBrandProfileStore,
+    () => getBrandProfileSnapshot(initialProfile),
+    () => initialProfile,
+  );
 
-  const preview = {
-    toneKeywords: splitCommaList(form.toneKeywords),
-    visualDirection: splitLines(form.visualDirection),
-    reelGoals: splitLines(form.reelGoals),
-    approvedCtas: splitLines(form.approvedCtas),
-    forbiddenPhrases: splitLines(form.forbiddenPhrases),
-    contentGuardrails: splitLines(form.contentGuardrails),
-    preferredHooks: splitLines(form.preferredHooks),
-  };
+  const brandBrief = buildBrandBrief(form);
 
-  function updateField(field: keyof typeof form, value: string) {
-    setForm((current) => ({
-      ...current,
+  function updateTextField(field: keyof Pick<
+    BrandProfile,
+    "brandName" | "brandVoice" | "targetCustomer" | "instagramHandle"
+  >,
+  value: string) {
+    saveBrandProfileSnapshot({
+      ...form,
       [field]: value,
-    }));
+    });
+  }
+
+  function updateListField(
+    field: keyof Pick<
+      BrandProfile,
+      "styleKeywords" | "preferredColors" | "productCategories"
+    >,
+    value: string,
+  ) {
+    saveBrandProfileSnapshot({
+      ...form,
+      [field]: splitCommaList(value),
+    });
+  }
+
+  function updateDoNotUseList(value: string) {
+    saveBrandProfileSnapshot({
+      ...form,
+      doNotUseList: splitLines(value),
+    });
   }
 
   return (
     <div className="space-y-5">
-      <div className="rounded-[28px] border border-border/80 bg-accent-soft/45 px-5 py-4">
-        <p className="text-sm font-semibold text-foreground">Editable preview only</p>
-        <p className="mt-1 text-sm leading-6 text-muted-foreground">
-          The fields below behave like a working admin form, but nothing is saved or published in this first version.
-        </p>
+      <div className="flex flex-col gap-3 rounded-[28px] border border-border/80 bg-accent-soft/45 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-foreground">
+            Saved locally in this browser
+          </p>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            This section uses a simple mock store for now, so your edits stay local and do not affect a live database.
+          </p>
+        </div>
+        <button
+          className="inline-flex items-center justify-center rounded-full border border-border/80 bg-white/85 px-4 py-2 text-sm font-semibold text-foreground transition hover:border-accent/40 hover:text-accent"
+          onClick={() => resetBrandProfileSnapshot(initialProfile)}
+          type="button"
+        >
+          Reset to sample data
+        </button>
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
+      <div className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
+        <SectionCard
+          title="Brand settings"
+          description="Fill this out in plain business language. The rest of the studio can use it later to keep content ideas on brand."
+        >
+          <div className="grid gap-5 md:grid-cols-2">
+            <FieldShell
+              label="Brand name"
+              helperText="Use the public name you want the team and future AI prompts to refer to."
+            >
+              <input
+                className={inputClasses}
+                type="text"
+                value={form.brandName}
+                onChange={(event) => updateTextField("brandName", event.target.value)}
+              />
+            </FieldShell>
+
+            <FieldShell
+              label="Instagram handle"
+              helperText="Enter the account handle customers would recognize. You can type it with or without the @ symbol."
+            >
+              <input
+                className={inputClasses}
+                type="text"
+                value={form.instagramHandle}
+                onChange={(event) =>
+                  updateTextField("instagramHandle", event.target.value)
+                }
+              />
+            </FieldShell>
+
+            <FieldShell
+              label="Brand voice"
+              helperText="Describe how the brand should sound when it writes captions, briefs, or content ideas."
+            >
+              <textarea
+                className={inputClasses}
+                rows={4}
+                value={form.brandVoice}
+                onChange={(event) => updateTextField("brandVoice", event.target.value)}
+              />
+            </FieldShell>
+
+            <FieldShell
+              label="Target customer"
+              helperText="Explain who you are trying to reach in simple terms, including what they care about or how they shop."
+            >
+              <textarea
+                className={inputClasses}
+                rows={4}
+                value={form.targetCustomer}
+                onChange={(event) =>
+                  updateTextField("targetCustomer", event.target.value)
+                }
+              />
+            </FieldShell>
+
+            <FieldShell
+              label="Style keywords"
+              helperText="Add a few short words or phrases that describe the brand look. Separate each one with a comma."
+            >
+              <textarea
+                className={inputClasses}
+                rows={4}
+                value={form.styleKeywords.join(", ")}
+                onChange={(event) => updateListField("styleKeywords", event.target.value)}
+              />
+            </FieldShell>
+
+            <FieldShell
+              label="Preferred colors"
+              helperText="List the colors that should show up most often in creative direction, references, or moodboards. Separate each one with a comma."
+            >
+              <textarea
+                className={inputClasses}
+                rows={4}
+                value={form.preferredColors.join(", ")}
+                onChange={(event) =>
+                  updateListField("preferredColors", event.target.value)
+                }
+              />
+            </FieldShell>
+
+            <FieldShell
+              label="Do not use list"
+              helperText="Write the words, phrases, or content angles the brand should avoid. Put each one on its own line."
+            >
+              <textarea
+                className={inputClasses}
+                rows={6}
+                value={form.doNotUseList.join("\n")}
+                onChange={(event) => updateDoNotUseList(event.target.value)}
+              />
+            </FieldShell>
+
+            <FieldShell
+              label="Product categories"
+              helperText="List the product groups the business wants the studio to talk about most. Separate each one with a comma."
+            >
+              <textarea
+                className={inputClasses}
+                rows={6}
+                value={form.productCategories.join(", ")}
+                onChange={(event) =>
+                  updateListField("productCategories", event.target.value)
+                }
+              />
+            </FieldShell>
+          </div>
+        </SectionCard>
+
         <div className="space-y-5">
           <SectionCard
-            title="Core brand profile"
-            description="Use this area to keep the team aligned on voice, audience, and the role Reels should play."
+            title="Brand brief"
+            description="This summary turns the form into a simple brief the team can use as a quick reference."
+            className="h-fit"
           >
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="block md:col-span-1">
-                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                  Brand name
-                </span>
-                <input
-                  className={inputClasses}
-                  type="text"
-                  value={form.brandName}
-                  onChange={(event) => updateField("brandName", event.target.value)}
-                />
-              </label>
-              <label className="block md:col-span-1">
-                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                  Posting cadence
-                </span>
-                <input
-                  className={inputClasses}
-                  type="text"
-                  value={form.postingCadence}
-                  onChange={(event) => updateField("postingCadence", event.target.value)}
-                />
-              </label>
-              <label className="block md:col-span-2">
-                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                  Brand focus
-                </span>
-                <textarea
-                  className={inputClasses}
-                  rows={3}
-                  value={form.focus}
-                  onChange={(event) => updateField("focus", event.target.value)}
-                />
-              </label>
-              <label className="block md:col-span-2">
-                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                  Audience
-                </span>
-                <textarea
-                  className={inputClasses}
-                  rows={3}
-                  value={form.audience}
-                  onChange={(event) => updateField("audience", event.target.value)}
-                />
-              </label>
-              <label className="block md:col-span-2">
-                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                  Voice summary
-                </span>
-                <textarea
-                  className={inputClasses}
-                  rows={4}
-                  value={form.voiceSummary}
-                  onChange={(event) => updateField("voiceSummary", event.target.value)}
-                />
-              </label>
-            </div>
-          </SectionCard>
+            <div className="space-y-5">
+              <div className="rounded-[24px] border border-border/80 bg-accent-soft/35 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                  One-paragraph brief
+                </p>
+                <p className="mt-3 text-sm leading-7 text-foreground">{brandBrief}</p>
+              </div>
 
-          <SectionCard
-            title="Creative direction"
-            description="These notes guide how AI-generated campaign ideas should feel before they ever get reviewed by a person."
-          >
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                  Tone keywords
-                </span>
-                <textarea
-                  className={inputClasses}
-                  rows={4}
-                  value={form.toneKeywords}
-                  onChange={(event) => updateField("toneKeywords", event.target.value)}
-                />
-              </label>
-              <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                  Preferred hooks
-                </span>
-                <textarea
-                  className={inputClasses}
-                  rows={4}
-                  value={form.preferredHooks}
-                  onChange={(event) => updateField("preferredHooks", event.target.value)}
-                />
-              </label>
-              <label className="block md:col-span-2">
-                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                  Visual direction
-                </span>
-                <textarea
-                  className={inputClasses}
-                  rows={5}
-                  value={form.visualDirection}
-                  onChange={(event) => updateField("visualDirection", event.target.value)}
-                />
-              </label>
-              <label className="block md:col-span-2">
-                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                  Reel goals
-                </span>
-                <textarea
-                  className={inputClasses}
-                  rows={4}
-                  value={form.reelGoals}
-                  onChange={(event) => updateField("reelGoals", event.target.value)}
-                />
-              </label>
-              <label className="block md:col-span-2">
-                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                  Production notes
-                </span>
-                <textarea
-                  className={inputClasses}
-                  rows={4}
-                  value={form.productionNotes}
-                  onChange={(event) => updateField("productionNotes", event.target.value)}
-                />
-              </label>
-            </div>
-          </SectionCard>
+              <div className="space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                  Quick reference
+                </p>
+                <div className="rounded-[22px] border border-border/80 bg-white/75 p-4">
+                  <p className="text-sm font-semibold text-foreground">Customer</p>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                    {form.targetCustomer}
+                  </p>
+                </div>
+                <div className="rounded-[22px] border border-border/80 bg-white/75 p-4">
+                  <p className="text-sm font-semibold text-foreground">Instagram</p>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                    {formatHandle(form.instagramHandle)}
+                  </p>
+                </div>
+              </div>
 
-          <SectionCard
-            title="Approval guardrails"
-            description="Helpful for future owners: one list shows what the team should say, the other shows what to avoid."
-          >
-            <div className="grid gap-4 lg:grid-cols-2">
-              <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                  Approved CTAs
-                </span>
-                <textarea
-                  className={inputClasses}
-                  rows={5}
-                  value={form.approvedCtas}
-                  onChange={(event) => updateField("approvedCtas", event.target.value)}
-                />
-              </label>
-              <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                  Forbidden phrases
-                </span>
-                <textarea
-                  className={inputClasses}
-                  rows={5}
-                  value={form.forbiddenPhrases}
-                  onChange={(event) => updateField("forbiddenPhrases", event.target.value)}
-                />
-              </label>
-              <label className="block lg:col-span-2">
-                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                  Content guardrails
-                </span>
-                <textarea
-                  className={inputClasses}
-                  rows={5}
-                  value={form.contentGuardrails}
-                  onChange={(event) => updateField("contentGuardrails", event.target.value)}
-                />
-              </label>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                  Style keywords
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {form.styleKeywords.map((keyword) => (
+                    <span
+                      key={keyword}
+                      className="rounded-full bg-accent-soft px-3 py-1 text-xs font-semibold text-accent"
+                    >
+                      {keyword}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-[22px] border border-border/80 bg-white/75 p-4">
+                  <p className="text-sm font-semibold text-foreground">Preferred colors</p>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                    {joinList(form.preferredColors)}
+                  </p>
+                </div>
+                <div className="rounded-[22px] border border-border/80 bg-white/75 p-4">
+                  <p className="text-sm font-semibold text-foreground">Product categories</p>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                    {joinList(form.productCategories)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-[24px] border border-border/80 bg-white/75 p-4">
+                <p className="text-sm font-semibold text-foreground">Do not use</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {form.doNotUseList.map((item) => (
+                    <span
+                      key={item}
+                      className="rounded-full border border-danger/20 bg-danger/10 px-3 py-1 text-xs font-semibold text-danger"
+                    >
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              </div>
             </div>
           </SectionCard>
         </div>
-
-        <SectionCard
-          title="Live preview"
-          description="A compact readout of how the current brand settings would guide the rest of the studio."
-          className="h-fit"
-        >
-          <div className="space-y-5">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                Brand
-              </p>
-              <p className="mt-2 font-serif text-3xl font-semibold text-foreground">
-                {form.brandName}
-              </p>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">{form.focus}</p>
-            </div>
-
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                Tone keywords
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {preview.toneKeywords.map((keyword) => (
-                  <span
-                    key={keyword}
-                    className="rounded-full bg-accent-soft px-3 py-1 text-xs font-semibold text-accent"
-                  >
-                    {keyword}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                Creative checklist
-              </p>
-              {preview.visualDirection.slice(0, 3).map((item) => (
-                <div
-                  key={item}
-                  className="rounded-2xl border border-border/80 bg-white/75 px-4 py-3 text-sm text-foreground"
-                >
-                  {item}
-                </div>
-              ))}
-            </div>
-
-            <div className="space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                Approved calls to action
-              </p>
-              {preview.approvedCtas.map((item) => (
-                <div
-                  key={item}
-                  className="rounded-2xl border border-border/80 bg-white/75 px-4 py-3 text-sm text-foreground"
-                >
-                  {item}
-                </div>
-              ))}
-            </div>
-
-            <div className="rounded-[24px] border border-border/80 bg-accent-soft/40 p-4">
-              <p className="text-sm font-semibold text-foreground">Current operating note</p>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                {form.productionNotes}
-              </p>
-            </div>
-          </div>
-        </SectionCard>
       </div>
     </div>
   );

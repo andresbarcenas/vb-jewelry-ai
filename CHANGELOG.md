@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- Rebuilt the Brand Profile section around business-owner-friendly fields including brand voice, target customer, style keywords, do-not-use guidance, preferred colors, product categories, and Instagram handle.
+- Added plain-English helper text for each Brand Profile field and a generated brand brief summary panel.
+- Added a simple browser-local mock store for Brand Profile data so edits persist locally without a backend.
+
+### Changed
+- Updated the dashboard brand snapshot card to reflect the new Brand Profile structure.
+- Simplified the Brand Profile data model and seed data to match the new internal admin workflow.
+
 ## [1.0.0] - 2026-03-22
 
 ### Added
