@@ -1,4 +1,5 @@
 import type {
+  AiPersonaProfile,
   AnalyticsSnapshot,
   BrandProfile,
   ContentIdea,
@@ -121,6 +122,51 @@ export const personas: Persona[] = [
     usageShare: 12,
     recommendedFor: "Premium launches and returning-customer campaigns.",
     lastUsed: "2026-03-07",
+  },
+];
+
+export const personaProfiles: AiPersonaProfile[] = [
+  {
+    id: "persona-profile-01",
+    name: "Lena",
+    ageRange: "28-34",
+    styleVibe: "Clean tailoring, soft gold layers, and polished everyday looks.",
+    audienceFit:
+      "Great for customers who want wearable jewelry that still feels elevated and intentional.",
+    scenarioExamples: [
+      "Morning coffee and blazer styling reel",
+      "Desk-to-dinner necklace layering clip",
+      "Minimal gold stack close-up for everyday outfits",
+    ],
+    status: "Active",
+  },
+  {
+    id: "persona-profile-02",
+    name: "Marisol",
+    ageRange: "32-40",
+    styleVibe: "Warm, artistic dressing with texture, movement, and handmade details.",
+    audienceFit:
+      "Fits shoppers who value craftsmanship, softer styling, and jewelry that feels personal.",
+    scenarioExamples: [
+      "Studio table styling with handmade textures",
+      "Close-up earring movement in natural light",
+      "Soft neutral outfit with one statement piece",
+    ],
+    status: "Active",
+  },
+  {
+    id: "persona-profile-03",
+    name: "Camille",
+    ageRange: "35-45",
+    styleVibe: "Refined collector energy with strong silhouettes and heirloom-inspired details.",
+    audienceFit:
+      "Best for repeat customers looking for investment-feeling pieces and thoughtful styling.",
+    scenarioExamples: [
+      "Evening outfit finished with one bold cuff",
+      "Collector tray flat lay with stacked rings",
+      "Occasion-ready pendant styled with a dark dress",
+    ],
+    status: "Inactive",
   },
 ];
 

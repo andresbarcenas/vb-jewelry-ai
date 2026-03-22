@@ -10,7 +10,10 @@ export function StatusBadge({ value }: StatusBadgeProps) {
   let classes =
     "border-border/80 bg-white text-muted-foreground";
 
-  if (
+  if (normalized.includes("inactive")) {
+    classes = "border-danger/20 bg-danger/10 text-danger";
+  } else if (
+    normalized.includes("active") ||
     normalized.includes("approved") ||
     normalized.includes("ready") ||
     normalized.includes("live")

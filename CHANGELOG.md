@@ -8,10 +8,13 @@ All notable changes to this project will be documented in this file.
 - Rebuilt the Brand Profile section around business-owner-friendly fields including brand voice, target customer, style keywords, do-not-use guidance, preferred colors, product categories, and Instagram handle.
 - Added plain-English helper text for each Brand Profile field and a generated brand brief summary panel.
 - Added a simple browser-local mock store for Brand Profile data so edits persist locally without a backend.
+- Rebuilt the Personas section as a local persona manager that supports creating and saving up to five fictional AI personas.
+- Added persona cards with photo placeholders, editable persona details, and browser-local mock storage for persona data.
 
 ### Changed
 - Updated the dashboard brand snapshot card to reflect the new Brand Profile structure.
 - Simplified the Brand Profile data model and seed data to match the new internal admin workflow.
+- Updated the Personas page copy and status badge handling to support active and inactive persona states.
 
 ## [1.0.0] - 2026-03-22
 
