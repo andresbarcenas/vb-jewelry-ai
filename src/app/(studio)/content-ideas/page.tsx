@@ -1,15 +1,18 @@
 import { ContentIdeasPanel } from "@/components/sections/content-ideas-panel";
 import { PageHeader } from "@/components/ui/page-header";
-import { contentIdeas } from "@/data/mock-studio";
+import { personaProfiles, productLibraryItems } from "@/data/mock-studio";
 
 export default function ContentIdeasPage() {
   return (
     <>
       <PageHeader
         title="Content Ideas"
-        description="A simple idea pipeline for reviewing hooks, themes, and product pairings before scripting or production begins."
+        description="Generate mock social content ideas by combining a persona, a product, and a creative direction. The workflow is structured so this step can later connect to an AI API."
       />
-      <ContentIdeasPanel ideas={contentIdeas} />
+      <ContentIdeasPanel
+        initialPersonas={personaProfiles}
+        initialProducts={productLibraryItems}
+      />
     </>
   );
 }

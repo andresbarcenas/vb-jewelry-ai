@@ -10,11 +10,16 @@ All notable changes to this project will be documented in this file.
 - Added a simple browser-local mock store for Brand Profile data so edits persist locally without a backend.
 - Rebuilt the Personas section as a local persona manager that supports creating and saving up to five fictional AI personas.
 - Added persona cards with photo placeholders, editable persona details, and browser-local mock storage for persona data.
+- Rebuilt the Product Library section with a mock upload workflow, clear product-entry guidance, filterable product cards, and browser-local storage for saved items.
+- Added a structured Content Ideas generator flow with persona, product, platform, mood, and content-type controls plus five mocked AI-ready output cards.
+- Rebuilt the Publishing Queue section as a local approval workflow with posting fields, manual Ready to Publish handling, business-approval warnings, and future integration helpers.
 
 ### Changed
 - Updated the dashboard brand snapshot card to reflect the new Brand Profile structure.
 - Simplified the Brand Profile data model and seed data to match the new internal admin workflow.
 - Updated the Personas page copy and status badge handling to support active and inactive persona states.
+- Updated the Product Library and Content Ideas pages to use the new local-first data models and reusable workflow utilities.
+- Added publishing-specific typed models so future scheduling or posting integrations can plug into the current admin UI without a rewrite.
 
 ## [1.0.0] - 2026-03-22
 

@@ -6,7 +6,9 @@ import type {
   DashboardStat,
   Persona,
   ProductAsset,
+  ProductLibraryItem,
   PublishingItem,
+  PublishingQueueEntry,
   VideoReviewItem,
 } from "@/types/studio";
 
@@ -254,6 +256,96 @@ export const productAssets: ProductAsset[] = [
     tags: ["Lightweight", "Movement", "Summer"],
     featured: false,
     launchWindow: "May preview",
+  },
+];
+
+export const productLibraryItems: ProductLibraryItem[] = [
+  {
+    id: "product-library-01",
+    productName: "Opal Cascade Earrings",
+    category: "Earrings",
+    material: "Gold-filled with opal accents",
+    color: "Warm gold and soft ivory",
+    styleTags: ["Statement", "Occasion", "Movement"],
+    productNotes:
+      "Use when the content needs visible movement and a more elevated event-ready feel.",
+    imageDataUrl: null,
+    imageName: "",
+  },
+  {
+    id: "product-library-02",
+    productName: "Solstice Chain Necklace",
+    category: "Necklace",
+    material: "14k gold-filled chain",
+    color: "Soft gold",
+    styleTags: ["Minimal", "Everyday", "Layering"],
+    productNotes:
+      "Works well for styling reels that compare necklines, layers, or simple outfit upgrades.",
+    imageDataUrl: null,
+    imageName: "",
+  },
+  {
+    id: "product-library-03",
+    productName: "Meadow Loop Ring",
+    category: "Ring",
+    material: "Sterling silver with brushed finish",
+    color: "Silver",
+    styleTags: ["Texture", "Handmade", "Collector"],
+    productNotes:
+      "Best for close-up detail shots and content that talks about finish, texture, or artisan quality.",
+    imageDataUrl: null,
+    imageName: "",
+  },
+];
+
+export const publishingQueueEntries: PublishingQueueEntry[] = [
+  {
+    id: "publishing-entry-01",
+    contentTitle: "Desk-to-dinner necklace styling Reel",
+    personaName: "Lena",
+    productName: "Solstice Chain Necklace",
+    scheduledPublishDate: "2026-03-25",
+    platform: "Instagram Reels",
+    caption:
+      "A simple neckline shift can completely change how this chain feels. This Reel shows how VB Jewelry makes one everyday piece feel polished from morning coffee to dinner plans.",
+    hashtags: ["#VBJewelry", "#InstagramReels", "#LayeredJewelry", "#HandmadeStyle"],
+    postingStatus: "Business Approved",
+  },
+  {
+    id: "publishing-entry-02",
+    contentTitle: "Movement-focused earrings feature",
+    personaName: "Marisol",
+    productName: "Opal Cascade Earrings",
+    scheduledPublishDate: "2026-03-28",
+    platform: "Instagram Reels",
+    caption:
+      "Soft light, natural movement, and one handmade detail that reads beautifully on camera. Use this post to highlight how the earrings catch motion without feeling overstyled.",
+    hashtags: ["#VBJewelry", "#StatementEarrings", "#HandmadeJewelry", "#JewelryReel"],
+    postingStatus: "Ready to Publish",
+  },
+  {
+    id: "publishing-entry-03",
+    contentTitle: "Collector ring texture close-up",
+    personaName: "Camille",
+    productName: "Meadow Loop Ring",
+    scheduledPublishDate: "2026-04-01",
+    platform: "Instagram Feed",
+    caption:
+      "This close-up content focuses on the brushed finish and handmade texture that give the ring its collector feel. Pair it with a quiet caption that speaks to longevity and craft.",
+    hashtags: ["#VBJewelry", "#RingDetails", "#CollectorStyle", "#MadeByHand"],
+    postingStatus: "Business Approved",
+  },
+  {
+    id: "publishing-entry-04",
+    contentTitle: "Gift-ready pendant moment",
+    personaName: "Marisol",
+    productName: "Luna Drop Pendant",
+    scheduledPublishDate: "2026-04-04",
+    platform: "Instagram Reels",
+    caption:
+      "Frame the pendant as a meaningful gift moment with warm light, a handwritten note, and a polished but personal tone that still feels true to the brand.",
+    hashtags: ["#VBJewelry", "#GiftIdea", "#PearlPendant", "#JewelryStudio"],
+    postingStatus: "Scheduled",
   },
 ];
 

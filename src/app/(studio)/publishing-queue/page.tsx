@@ -1,15 +1,15 @@
 import { PublishingQueuePanel } from "@/components/sections/publishing-queue-panel";
 import { PageHeader } from "@/components/ui/page-header";
-import { publishingQueue } from "@/data/mock-studio";
+import { publishingQueueEntries } from "@/data/mock-studio";
 
 export default function PublishingQueuePage() {
   return (
     <>
       <PageHeader
         title="Publishing Queue"
-        description="The final view of what is scheduled, what still needs a date, and which owner is holding each Reel."
+        description="Review approved content, finalize the posting details, and manually mark items ready to publish. This workflow stays local for now and is prepared for future scheduling integration."
       />
-      <PublishingQueuePanel items={publishingQueue} />
+      <PublishingQueuePanel initialItems={publishingQueueEntries} />
     </>
   );
 }

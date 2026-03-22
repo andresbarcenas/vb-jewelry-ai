@@ -38,6 +38,72 @@ export interface AiPersonaProfile {
   status: "Active" | "Inactive";
 }
 
+export interface ProductLibraryItem {
+  id: string;
+  productName: string;
+  category: string;
+  material: string;
+  color: string;
+  styleTags: string[];
+  productNotes: string;
+  imageDataUrl: string | null;
+  imageName: string;
+}
+
+export type ContentPlatform = "Instagram Reels";
+
+export type ContentMood =
+  | "Elevated"
+  | "Romantic"
+  | "Warm"
+  | "Editorial"
+  | "Playful"
+  | "Minimal";
+
+export type ContentIdeaType =
+  | "lifestyle"
+  | "luxury"
+  | "casual"
+  | "story"
+  | "gift idea"
+  | "trendy";
+
+export interface ContentIdeaGeneratorInput {
+  persona: AiPersonaProfile;
+  product: ProductLibraryItem;
+  platform: ContentPlatform;
+  mood: ContentMood;
+  contentType: ContentIdeaType;
+}
+
+export interface GeneratedContentIdeaCard {
+  id: string;
+  hook: string;
+  conceptSummary: string;
+  visualDirection: string;
+  captionIdea: string;
+  cta: string;
+}
+
+export type PublishingPlatform = "Instagram Reels" | "Instagram Feed";
+
+export type PublishingStatus =
+  | "Business Approved"
+  | "Ready to Publish"
+  | "Scheduled";
+
+export interface PublishingQueueEntry {
+  id: string;
+  contentTitle: string;
+  personaName: string;
+  productName: string;
+  scheduledPublishDate: string;
+  platform: PublishingPlatform;
+  caption: string;
+  hashtags: string[];
+  postingStatus: PublishingStatus;
+}
+
 export interface Persona {
   id: string;
   name: string;
