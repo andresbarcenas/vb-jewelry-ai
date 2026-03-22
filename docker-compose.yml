@@ -1,0 +1,53 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      CI: "true"
+      NODE_ENV: development
+      NEXT_TELEMETRY_DISABLED: "1"
+      DATABASE_URL: postgresql://vb_user:vb_password@db:5432/vb_jewelry_ai?schema=public
+      REDIS_URL: redis://redis:6379
+      APP_BASE_URL: http://localhost:3000
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    volumes:
+      - ./:/app
+      - /app/node_modules
+    command: sh -c "pnpm install --frozen-lockfile && pnpm prisma generate && pnpm prisma db push && pnpm dev -H 0.0.0.0 -p 3000"
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: vb_jewelry_ai
+      POSTGRES_USER: vb_user
+      POSTGRES_PASSWORD: vb_password
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vb_user -d vb_jewelry_ai"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  redis_data:

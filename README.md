@@ -43,6 +43,29 @@ pnpm typecheck
 pnpm build
 ```
 
+## Run with Docker (web + Postgres + Redis)
+
+```bash
+docker compose up --build
+```
+
+This starts:
+- `web` on `http://localhost:3000`
+- `db` (PostgreSQL) on `localhost:5433`
+- `redis` on `localhost:6380`
+
+If port `3000` is already in use, run with a different web port:
+
+```bash
+WEB_PORT=3001 docker compose up --build
+```
+
+Seed starter data (run once after containers are up):
+
+```bash
+docker compose exec web pnpm db:seed
+```
+
 ## Project structure (plain English)
 
 - `src/app`
@@ -59,6 +82,12 @@ pnpm build
 
 - `src/lib/services`
   Async service functions for each domain (`brand`, `persona`, `product`, `content`, `publishing`, `analytics`, `ai`).
+
+- `src/lib/repositories`
+  Server-side database access functions for brand, personas, and products.
+
+- `src/app/api`
+  Internal API routes that connect the UI service layer to repository/database operations.
 
 - `src/lib/jobs`
   Mock async pipeline jobs that simulate generation/review/publish workflows and return structured `JobResult` values.
@@ -84,13 +113,20 @@ pnpm build
 - `docs/architecture-simple.md`
   Plain-English explanation for non-technical owners.
 
+- `docs/backend-foundation.md`
+  Technical guide for Docker + Prisma + Postgres + Redis setup.
+
+- `docs/backend-foundation-simple.md`
+  Plain-English backend explanation for non-technical owners.
+
 ## How mock data is wired
 
 1. Seed data starts in `src/data/mock-studio.ts`.
-2. Services in `src/lib/services` read/write mock state (browser local storage on client).
-3. `StudioDataProvider` loads service data and exposes hooks to UI sections.
-4. Section panels call provider actions instead of importing mock files directly.
-5. Jobs/logging run through the same service layer, so future API integrations can be swapped in without redesigning pages.
+2. Prisma seed uses that data to initialize PostgreSQL tables.
+3. Services in `src/lib/services` call API routes for Brand, Personas, and Products (with mock fallback while migration is in progress).
+4. `StudioDataProvider` loads service data and exposes hooks to UI sections.
+5. Section panels call provider actions instead of importing mock files directly.
+6. Jobs/logging run through the same service layer, so future API integrations can be swapped in without redesigning pages.
 
 ## Safest files to edit later
 
@@ -108,7 +144,7 @@ If you want to update business-facing content without changing app logic, start 
 ## Current scope (v1)
 
 - There is no login flow yet.
-- There is no database yet.
+- A local Postgres + Prisma foundation is now included.
 - There are no real external API calls yet (AI/video/storage/publishing are mocked).
-- Data persists in browser-local mock storage for internal testing.
+- Brand, Personas, and Product Library are prepared to persist through the backend layer.
 - The architecture is prepared for later integrations without changing the current owner-facing UI.

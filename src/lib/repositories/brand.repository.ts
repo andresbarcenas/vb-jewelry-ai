@@ -1,12 +1,6 @@
 import { brandProfile as defaultBrandProfile } from "@/data/mock-studio";
+import { prisma } from "@/lib/prisma";
 import type { BrandProfile } from "@/types/studio";
-import {
-  readPersistedValue,
-  resetPersistedValue,
-  writePersistedValue,
-} from "@/lib/services/mock-persistence";
-
-const STORAGE_KEY = "vb-jewelry-ai.service.brand-profile";
 
 function cleanString(value: unknown, fallback: string) {
   return typeof value === "string" ? value.trim() : fallback;
@@ -53,59 +47,45 @@ function normalizeBrandProfile(raw: unknown, fallback: BrandProfile): BrandProfi
   };
 }
 
-async function requestJson<T>(input: string, init?: RequestInit): Promise<T | null> {
-  try {
-    const response = await fetch(input, {
-      ...init,
-      headers: {
-        "Content-Type": "application/json",
-        ...(init?.headers ?? {}),
-      },
-      cache: "no-store",
-    });
-
-    if (!response.ok) {
-      return null;
-    }
-
-    return (await response.json()) as T;
-  } catch {
-    return null;
-  }
-}
-
 export async function getBrandProfile(): Promise<BrandProfile> {
-  const fromApi = await requestJson<BrandProfile>("/api/brand");
-
-  if (fromApi) {
-    return normalizeBrandProfile(fromApi, defaultBrandProfile);
-  }
-
-  return readPersistedValue(STORAGE_KEY, defaultBrandProfile, normalizeBrandProfile);
-}
-
-export async function saveBrandProfile(nextProfile: BrandProfile): Promise<BrandProfile> {
-  const normalized = normalizeBrandProfile(nextProfile, defaultBrandProfile);
-  const fromApi = await requestJson<BrandProfile>("/api/brand", {
-    method: "PUT",
-    body: JSON.stringify(normalized),
+  const current = await prisma.brand.findFirst({
+    orderBy: {
+      updatedAt: "desc",
+    },
   });
 
-  if (fromApi) {
-    return normalizeBrandProfile(fromApi, defaultBrandProfile);
+  if (!current) {
+    return saveBrandProfile(defaultBrandProfile);
   }
 
-  return writePersistedValue(STORAGE_KEY, normalized);
+  return normalizeBrandProfile(current, defaultBrandProfile);
+}
+
+export async function saveBrandProfile(profile: BrandProfile): Promise<BrandProfile> {
+  const normalized = normalizeBrandProfile(profile, defaultBrandProfile);
+  const existing = await prisma.brand.findFirst({
+    select: {
+      id: true,
+    },
+    orderBy: {
+      updatedAt: "desc",
+    },
+  });
+
+  const nextRecord = existing
+    ? await prisma.brand.update({
+        where: {
+          id: existing.id,
+        },
+        data: normalized,
+      })
+    : await prisma.brand.create({
+        data: normalized,
+      });
+
+  return normalizeBrandProfile(nextRecord, defaultBrandProfile);
 }
 
 export async function resetBrandProfile(): Promise<BrandProfile> {
-  const fromApi = await requestJson<BrandProfile>("/api/brand/reset", {
-    method: "POST",
-  });
-
-  if (fromApi) {
-    return normalizeBrandProfile(fromApi, defaultBrandProfile);
-  }
-
-  return resetPersistedValue(STORAGE_KEY, defaultBrandProfile);
+  return saveBrandProfile(defaultBrandProfile);
 }

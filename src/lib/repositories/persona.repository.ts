@@ -1,17 +1,12 @@
 import { personaProfiles as defaultPersonas } from "@/data/mock-studio";
+import { prisma } from "@/lib/prisma";
 import type {
   AiPersonaProfile,
   PersonaRecommendedFor,
   PersonaStatus,
   PersonaUseCaseTag,
 } from "@/types/studio";
-import {
-  readPersistedValue,
-  resetPersistedValue,
-  writePersistedValue,
-} from "@/lib/services/mock-persistence";
 
-const STORAGE_KEY = "vb-jewelry-ai.service.personas";
 const MAX_PERSONAS = 5;
 const PERSONA_USE_CASE_TAGS: PersonaUseCaseTag[] = [
   "everyday",
@@ -36,7 +31,7 @@ function cleanStringList(value: unknown, fallback: string[]) {
   return cleaned.length > 0 ? cleaned : fallback;
 }
 
-function normalizeStatus(value: unknown, fallback: PersonaStatus) {
+function normalizeStatus(value: unknown, fallback: PersonaStatus): PersonaStatus {
   if (value === "active" || value === "inactive") {
     return value;
   }
@@ -194,120 +189,140 @@ function createPersonaId(name: string) {
   return `persona-${slug}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
-async function requestJson<T>(input: string, init?: RequestInit): Promise<T | null> {
-  try {
-    const response = await fetch(input, {
-      ...init,
-      headers: {
-        "Content-Type": "application/json",
-        ...(init?.headers ?? {}),
-      },
-      cache: "no-store",
-    });
-
-    if (!response.ok) {
-      return null;
-    }
-
-    return (await response.json()) as T;
-  } catch {
-    return null;
-  }
+function toDatabaseInput(persona: AiPersonaProfile) {
+  return {
+    id: persona.id,
+    name: persona.name,
+    label: persona.label,
+    ageRange: persona.ageRange,
+    styleVibe: persona.styleVibe,
+    audienceFit: persona.audienceFit,
+    bestUseCases: persona.bestUseCases,
+    contentTone: persona.contentTone,
+    recommendedScenes: persona.recommendedScenes,
+    preferredColors: persona.preferredColors,
+    jewelryFit: persona.jewelryFit,
+    avoidList: persona.avoidList,
+    promptStarter: persona.promptStarter,
+    bestContentTypes: persona.recommendedFor.bestContentTypes,
+    bestMoods: persona.recommendedFor.bestMoods,
+    bestProductCategories: persona.recommendedFor.bestProductCategories,
+    status: persona.status,
+  };
 }
 
-async function persistPersonas(nextPersonas: AiPersonaProfile[]) {
-  const normalized = normalizePersonas(nextPersonas, defaultPersonas);
-  return writePersistedValue(STORAGE_KEY, normalized);
-}
-
-export async function listPersonas(): Promise<AiPersonaProfile[]> {
-  const fromApi = await requestJson<AiPersonaProfile[]>("/api/personas");
-
-  if (fromApi) {
-    return normalizePersonas(fromApi, defaultPersonas);
-  }
-
-  return readPersistedValue(STORAGE_KEY, defaultPersonas, normalizePersonas);
-}
-
-export async function createPersona(persona: AiPersonaProfile): Promise<AiPersonaProfile[]> {
-  const candidate = normalizePersona(persona);
-
-  if (!candidate) {
-    return listPersonas();
-  }
-
-  const fromApi = await requestJson<AiPersonaProfile[]>("/api/personas", {
-    method: "POST",
-    body: JSON.stringify({
-      ...candidate,
-      id: candidate.id || createPersonaId(candidate.name),
-    }),
-  });
-
-  if (fromApi) {
-    return normalizePersonas(fromApi, defaultPersonas);
-  }
-
-  const current = await listPersonas();
-
-  if (current.length >= MAX_PERSONAS) {
-    return current;
-  }
-
-  return persistPersonas([
-    ...current,
+function fromDatabaseOutput(raw: {
+  id: string;
+  name: string;
+  label: string;
+  ageRange: string;
+  styleVibe: string;
+  audienceFit: string;
+  bestUseCases: string[];
+  contentTone: string;
+  recommendedScenes: string[];
+  preferredColors: string[];
+  jewelryFit: string;
+  avoidList: string[];
+  promptStarter: string;
+  bestContentTypes: string[];
+  bestMoods: string[];
+  bestProductCategories: string[];
+  status: string;
+}): AiPersonaProfile | null {
+  return normalizePersona(
     {
-      ...candidate,
-      id: candidate.id || createPersonaId(candidate.name),
+      ...raw,
+      recommendedFor: {
+        bestContentTypes: raw.bestContentTypes,
+        bestMoods: raw.bestMoods,
+        bestProductCategories: raw.bestProductCategories,
+      },
     },
-  ]);
-}
-
-export async function updatePersona(persona: AiPersonaProfile): Promise<AiPersonaProfile[]> {
-  const candidate = normalizePersona(persona);
-
-  if (!candidate) {
-    return listPersonas();
-  }
-
-  const fromApi = await requestJson<AiPersonaProfile[]>(`/api/personas/${candidate.id}`, {
-    method: "PUT",
-    body: JSON.stringify(candidate),
-  });
-
-  if (fromApi) {
-    return normalizePersonas(fromApi, defaultPersonas);
-  }
-
-  const current = await listPersonas();
-
-  return persistPersonas(
-    current.map((item) => (item.id === candidate.id ? candidate : item)),
+    defaultPersonas.find((item) => item.id === raw.id),
   );
 }
 
-export async function deletePersona(personaId: string): Promise<AiPersonaProfile[]> {
-  const fromApi = await requestJson<AiPersonaProfile[]>(`/api/personas/${personaId}`, {
-    method: "DELETE",
+export async function getPersonas(): Promise<AiPersonaProfile[]> {
+  const records = await prisma.persona.findMany({
+    orderBy: {
+      createdAt: "asc",
+    },
   });
 
-  if (fromApi) {
-    return normalizePersonas(fromApi, defaultPersonas);
+  if (records.length === 0) {
+    await prisma.persona.createMany({
+      data: defaultPersonas.map(toDatabaseInput),
+    });
+    return defaultPersonas;
   }
 
-  const current = await listPersonas();
-  return persistPersonas(current.filter((item) => item.id !== personaId));
+  const normalized = records
+    .map(fromDatabaseOutput)
+    .filter((item): item is AiPersonaProfile => item !== null)
+    .slice(0, MAX_PERSONAS);
+
+  return normalizePersonas(normalized, defaultPersonas);
+}
+
+export async function createPersona(persona: AiPersonaProfile): Promise<AiPersonaProfile[]> {
+  const current = await getPersonas();
+  const candidate = normalizePersona(persona);
+
+  if (!candidate || current.length >= MAX_PERSONAS) {
+    return current;
+  }
+
+  const id = candidate.id || createPersonaId(candidate.name);
+  await prisma.persona.upsert({
+    where: {
+      id,
+    },
+    create: toDatabaseInput({
+      ...candidate,
+      id,
+    }),
+    update: toDatabaseInput({
+      ...candidate,
+      id,
+    }),
+  });
+
+  return getPersonas();
+}
+
+export async function updatePersona(persona: AiPersonaProfile): Promise<AiPersonaProfile[]> {
+  const current = await getPersonas();
+  const candidate = normalizePersona(persona);
+
+  if (!candidate) {
+    return current;
+  }
+
+  await prisma.persona.update({
+    where: {
+      id: candidate.id,
+    },
+    data: toDatabaseInput(candidate),
+  });
+
+  return getPersonas();
+}
+
+export async function deletePersona(personaId: string): Promise<AiPersonaProfile[]> {
+  await prisma.persona.deleteMany({
+    where: {
+      id: personaId,
+    },
+  });
+
+  return getPersonas();
 }
 
 export async function resetPersonas(): Promise<AiPersonaProfile[]> {
-  const fromApi = await requestJson<AiPersonaProfile[]>("/api/personas/reset", {
-    method: "POST",
+  await prisma.persona.deleteMany();
+  await prisma.persona.createMany({
+    data: defaultPersonas.map(toDatabaseInput),
   });
-
-  if (fromApi) {
-    return normalizePersonas(fromApi, defaultPersonas);
-  }
-
-  return resetPersistedValue(STORAGE_KEY, defaultPersonas);
+  return getPersonas();
 }

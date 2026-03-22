@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.1.0] - 2026-03-22
 
 ### Added
 - Rebuilt the Brand Profile section around business-owner-friendly fields including brand voice, target customer, style keywords, do-not-use guidance, preferred colors, product categories, and Instagram handle.
@@ -22,6 +22,10 @@ All notable changes to this project will be documented in this file.
 - Added architecture docs (`docs/architecture.md` and `docs/architecture-simple.md`) for both technical and non-technical audiences.
 - Upgraded Personas into a creative control center with richer cards, quick-tag filtering, detail view sections, and a default prompt preview area.
 - Added four realistic VB Jewelry starter personas for generation planning: Lena (polished everyday), Sofia (event ready), Camila (warm artisan lifestyle), and Maya (trend-aware minimal).
+- Added Docker-based local development with `web`, `db` (PostgreSQL), and `redis` services, plus a production-ready app Dockerfile and `.env.example`.
+- Added Prisma ORM foundation with PostgreSQL datasource, initial schema models (`Brand`, `Persona`, `Product`, `ContentIdea`, `ReviewItem`, `PublishingQueue`), and a mock-data seed script.
+- Added backend API routes and repository modules for Brand Profile, Personas, and Product Library persistence.
+- Added backend foundation docs for both technical and non-technical audiences (`docs/backend-foundation.md`, `docs/backend-foundation-simple.md`).
 
 ### Changed
 - Updated the dashboard brand snapshot card to reflect the new Brand Profile structure.
@@ -38,6 +42,12 @@ All notable changes to this project will be documented in this file.
 - Expanded the persona model for AI-ready creative control (`label`, `bestUseCases`, `contentTone`, `recommendedScenes`, `preferredColors`, `jewelryFit`, `avoidList`, `promptStarter`, and `recommendedFor` guidance).
 - Updated persona service normalization to support new fields while handling older local mock data formats.
 - Updated content-idea persona usage to align with new persona status values and scene/tone fields.
+- Updated Brand Profile, Personas, and Product Library services to use backend APIs first with safe local mock fallback during phased migration.
+- Updated Docker startup flow to preserve local database edits by default, with seeding run manually when needed.
+- Updated Docker compose web startup to run reliably in non-interactive environments (`CI=true`) and support configurable host port mapping via `WEB_PORT`.
+
+### Notes
+- This release introduces the initial Docker local development implementation with PostgreSQL, Redis, Prisma, and server-side data access foundations while preserving the current UI.
 
 ## [1.0.0] - 2026-03-22
 

@@ -1,12 +1,6 @@
 import { productLibraryItems as defaultProducts } from "@/data/mock-studio";
+import { prisma } from "@/lib/prisma";
 import type { ProductLibraryItem } from "@/types/studio";
-import {
-  readPersistedValue,
-  resetPersistedValue,
-  writePersistedValue,
-} from "@/lib/services/mock-persistence";
-
-const STORAGE_KEY = "vb-jewelry-ai.service.products";
 
 function cleanString(value: unknown, fallback: string) {
   return typeof value === "string" ? value.trim() : fallback;
@@ -17,9 +11,11 @@ function cleanStringList(value: unknown, fallback: string[]) {
     return fallback;
   }
 
-  return value
+  const cleaned = value
     .map((item) => (typeof item === "string" ? item.trim() : ""))
     .filter(Boolean);
+
+  return cleaned.length > 0 ? cleaned : fallback;
 }
 
 function normalizeProduct(raw: unknown, fallback?: ProductLibraryItem): ProductLibraryItem | null {
@@ -76,116 +72,113 @@ function createProductId(name: string) {
   return `product-${slug}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
-async function requestJson<T>(input: string, init?: RequestInit): Promise<T | null> {
-  try {
-    const response = await fetch(input, {
-      ...init,
-      headers: {
-        "Content-Type": "application/json",
-        ...(init?.headers ?? {}),
-      },
-      cache: "no-store",
+function toDatabaseInput(product: ProductLibraryItem) {
+  return {
+    id: product.id,
+    productName: product.productName,
+    category: product.category,
+    material: product.material,
+    color: product.color,
+    styleTags: product.styleTags,
+    productNotes: product.productNotes,
+    imageDataUrl: product.imageDataUrl,
+    imageName: product.imageName,
+  };
+}
+
+function fromDatabaseOutput(raw: {
+  id: string;
+  productName: string;
+  category: string;
+  material: string;
+  color: string;
+  styleTags: string[];
+  productNotes: string;
+  imageDataUrl: string | null;
+  imageName: string;
+}): ProductLibraryItem | null {
+  return normalizeProduct(raw, defaultProducts.find((item) => item.id === raw.id));
+}
+
+export async function getProducts(): Promise<ProductLibraryItem[]> {
+  const records = await prisma.product.findMany({
+    orderBy: {
+      createdAt: "asc",
+    },
+  });
+
+  if (records.length === 0) {
+    await prisma.product.createMany({
+      data: defaultProducts.map(toDatabaseInput),
     });
-
-    if (!response.ok) {
-      return null;
-    }
-
-    return (await response.json()) as T;
-  } catch {
-    return null;
-  }
-}
-
-async function persistProducts(nextProducts: ProductLibraryItem[]) {
-  const normalized = normalizeProducts(nextProducts, defaultProducts);
-  return writePersistedValue(STORAGE_KEY, normalized);
-}
-
-export async function listProducts(): Promise<ProductLibraryItem[]> {
-  const fromApi = await requestJson<ProductLibraryItem[]>("/api/products");
-
-  if (fromApi) {
-    return normalizeProducts(fromApi, defaultProducts);
+    return defaultProducts;
   }
 
-  return readPersistedValue(STORAGE_KEY, defaultProducts, normalizeProducts);
+  const normalized = records
+    .map(fromDatabaseOutput)
+    .filter((item): item is ProductLibraryItem => item !== null);
+
+  return normalizeProducts(normalized, defaultProducts);
 }
 
 export async function createProduct(product: ProductLibraryItem): Promise<ProductLibraryItem[]> {
+  const current = await getProducts();
   const candidate = normalizeProduct(product);
 
   if (!candidate) {
-    return listProducts();
+    return current;
   }
 
-  const fromApi = await requestJson<ProductLibraryItem[]>("/api/products", {
-    method: "POST",
-    body: JSON.stringify({
+  const id = candidate.id || createProductId(candidate.productName);
+  await prisma.product.upsert({
+    where: {
+      id,
+    },
+    create: toDatabaseInput({
       ...candidate,
-      id: candidate.id || createProductId(candidate.productName),
+      id,
+    }),
+    update: toDatabaseInput({
+      ...candidate,
+      id,
     }),
   });
 
-  if (fromApi) {
-    return normalizeProducts(fromApi, defaultProducts);
-  }
-
-  const current = await listProducts();
-
-  return persistProducts([
-    {
-      ...candidate,
-      id: candidate.id || createProductId(candidate.productName),
-    },
-    ...current,
-  ]);
+  return getProducts();
 }
 
 export async function updateProduct(product: ProductLibraryItem): Promise<ProductLibraryItem[]> {
+  const current = await getProducts();
   const candidate = normalizeProduct(product);
 
   if (!candidate) {
-    return listProducts();
+    return current;
   }
 
-  const fromApi = await requestJson<ProductLibraryItem[]>(`/api/products/${candidate.id}`, {
-    method: "PUT",
-    body: JSON.stringify(candidate),
+  await prisma.product.update({
+    where: {
+      id: candidate.id,
+    },
+    data: toDatabaseInput(candidate),
   });
 
-  if (fromApi) {
-    return normalizeProducts(fromApi, defaultProducts);
-  }
-
-  const current = await listProducts();
-
-  return persistProducts(
-    current.map((item) => (item.id === candidate.id ? candidate : item)),
-  );
+  return getProducts();
 }
 
 export async function deleteProduct(productId: string): Promise<ProductLibraryItem[]> {
-  const fromApi = await requestJson<ProductLibraryItem[]>(`/api/products/${productId}`, {
-    method: "DELETE",
+  await prisma.product.deleteMany({
+    where: {
+      id: productId,
+    },
   });
 
-  if (fromApi) {
-    return normalizeProducts(fromApi, defaultProducts);
-  }
-
-  const current = await listProducts();
-  return persistProducts(current.filter((item) => item.id !== productId));
+  return getProducts();
 }
 
 export async function resetProducts(): Promise<ProductLibraryItem[]> {
-  const fromApi = await requestJson<ProductLibraryItem[]>("/api/products/reset", {
-    method: "POST",
+  await prisma.product.deleteMany();
+  await prisma.product.createMany({
+    data: defaultProducts.map(toDatabaseInput),
   });
-
-  if (fromApi) {
-    return normalizeProducts(fromApi, defaultProducts);
-  }
-
-  return resetPersistedValue(STORAGE_KEY, defaultProducts);
+  return getProducts();
 }

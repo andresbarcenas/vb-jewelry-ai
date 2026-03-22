@@ -1,0 +1,104 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Brand {
+  id                String   @id @default(cuid())
+  brandName         String
+  brandVoice        String   @db.Text
+  targetCustomer    String   @db.Text
+  styleKeywords     String[]
+  doNotUseList      String[]
+  preferredColors   String[]
+  productCategories String[]
+  instagramHandle   String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Persona {
+  id                    String   @id
+  name                  String
+  label                 String
+  ageRange              String
+  styleVibe             String   @db.Text
+  audienceFit           String   @db.Text
+  bestUseCases          String[]
+  contentTone           String   @db.Text
+  recommendedScenes     String[]
+  preferredColors       String[]
+  jewelryFit            String   @db.Text
+  avoidList             String[]
+  promptStarter         String   @db.Text
+  bestContentTypes      String[]
+  bestMoods             String[]
+  bestProductCategories String[]
+  status                String
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model Product {
+  id          String   @id
+  productName String
+  category    String
+  material    String   @db.Text
+  color       String
+  styleTags   String[]
+  productNotes String  @db.Text
+  imageDataUrl String? @db.Text
+  imageName   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ContentIdea {
+  id          String   @id
+  title       String
+  personaId   String
+  personaName String
+  status      String
+  products    String[]
+  theme       String
+  concept     String   @db.Text
+  hook        String   @db.Text
+  captionAngle String  @db.Text
+  priority    String
+  targetLaunch String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ReviewItem {
+  id           String   @id
+  conceptTitle String
+  personaName  String
+  productName  String
+  editor       String
+  reviewer     String
+  status       String
+  dueDate      String
+  notes        String   @db.Text
+  duration     String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model PublishingQueue {
+  id                   String   @id
+  contentTitle         String
+  personaName          String
+  productName          String
+  scheduledPublishDate String
+  platform             String
+  caption              String   @db.Text
+  hashtags             String[]
+  postingStatus        String
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
