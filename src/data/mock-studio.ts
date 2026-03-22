@@ -564,57 +564,99 @@ export const publishingQueue: PublishingItem[] = [
 ];
 
 export const analyticsSnapshot: AnalyticsSnapshot = {
-  timeframe: "Last 30 days",
-  views: 184200,
-  saves: 12840,
-  shareRate: 6.4,
-  conversionLift: 18.2,
-  topPersonas: [
+  timeframe: "This week",
+  totalPosts: 18,
+  approvedPosts: 14,
+  engagementRate: 7.8,
+  bestPersona: "Persona 2",
+  bestContentType: "Luxury",
+  weeklyPostVolume: [
     {
-      name: "Sofia the Stylist",
-      lift: 24,
-      note: "Most consistent saver-to-click performance across evergreen reels.",
+      label: "Monday",
+      value: 2,
+      helper: "Steady start with two approved posts",
     },
     {
-      name: "Maya the Maker",
-      lift: 19,
-      note: "Strongest completion rate when macro detail is in the first three seconds.",
+      label: "Tuesday",
+      value: 3,
+      helper: "Luxury and story content both went out",
     },
     {
-      name: "Elena the Editor",
-      lift: 14,
-      note: "Best fit for launches where mood and framing matter more than utility.",
+      label: "Wednesday",
+      value: 1,
+      helper: "Light approval day while edits were in review",
+    },
+    {
+      label: "Thursday",
+      value: 4,
+      helper: "Best posting day for approved content volume",
+    },
+    {
+      label: "Friday",
+      value: 3,
+      helper: "Consistent flow across Reel-ready assets",
+    },
+    {
+      label: "Saturday",
+      value: 2,
+      helper: "Smaller weekend queue with polished edits",
+    },
+    {
+      label: "Sunday",
+      value: 3,
+      helper: "Gift and casual content rounded out the week",
     },
   ],
-  topThemes: [
+  personaPerformance: [
     {
-      label: "Texture close-ups",
-      score: 92,
-      note: "Highest average save rate across spring posts.",
+      name: "Persona 2",
+      engagementRate: 9.2,
+      approvedPosts: 5,
+      note: "Luxury-facing product stories with this persona held attention the longest.",
     },
     {
-      label: "Outfit finishing touches",
-      score: 88,
-      note: "Reliable reach driver for evergreen content.",
+      name: "Persona 1",
+      engagementRate: 7.6,
+      approvedPosts: 4,
+      note: "Lifestyle styling content stayed dependable for everyday product features.",
     },
     {
-      label: "Movement demos",
-      score: 80,
-      note: "Strong watch time for earrings and layered pieces.",
+      name: "Persona 3",
+      engagementRate: 6.8,
+      approvedPosts: 3,
+      note: "Best results came from close-up craft details and slower pacing.",
     },
   ],
-  trend: [
-    { label: "Week 1", value: 52 },
-    { label: "Week 2", value: 61 },
-    { label: "Week 3", value: 58 },
-    { label: "Week 4", value: 72 },
-    { label: "Week 5", value: 79 },
-    { label: "Week 6", value: 84 },
+  contentTypePerformance: [
+    {
+      label: "Luxury",
+      engagementRate: 9.4,
+      approvedPosts: 4,
+      note: "Highest engagement rate and strongest saves this week.",
+    },
+    {
+      label: "Story",
+      engagementRate: 8.3,
+      approvedPosts: 3,
+      note: "Narrative captions performed well when one product stayed in focus.",
+    },
+    {
+      label: "Lifestyle",
+      engagementRate: 7.5,
+      approvedPosts: 4,
+      note: "Reliable all-around performer for wearable everyday jewelry content.",
+    },
+    {
+      label: "Gift idea",
+      engagementRate: 6.9,
+      approvedPosts: 2,
+      note: "Worked best when the caption stayed warm and occasion-specific.",
+    },
   ],
-  notes: [
-    "Detail-first openers are outperforming trend-style hooks for saved posts.",
-    "Approved personas are converting better when each reel focuses on one styling point.",
-    "Content tied to ready assets moves through review two days faster on average.",
+  insights: [
+    "Luxury-style videos with Persona 2 performed best this week.",
+    "Posts focused on one featured product were approved faster than multi-product concepts.",
+    "Captions that opened with a styling payoff outperformed caption-first storytelling hooks.",
   ],
 };
 

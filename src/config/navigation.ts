@@ -9,6 +9,12 @@ export const studioNavigation: NavItem[] = [
     icon: "dashboard",
   },
   {
+    label: "How This Works",
+    href: "/how-this-works",
+    description: "A simple guide for understanding the studio and workflow.",
+    icon: "guide",
+  },
+  {
     label: "Brand Profile",
     href: "/brand-profile",
     description: "The voice, guardrails, and creative rules the team should follow.",

@@ -13,6 +13,8 @@ All notable changes to this project will be documented in this file.
 - Rebuilt the Product Library section with a mock upload workflow, clear product-entry guidance, filterable product cards, and browser-local storage for saved items.
 - Added a structured Content Ideas generator flow with persona, product, platform, mood, and content-type controls plus five mocked AI-ready output cards.
 - Rebuilt the Publishing Queue section as a local approval workflow with posting fields, manual Ready to Publish handling, business-approval warnings, and future integration helpers.
+- Added a simplified Analytics dashboard with mock performance metrics, lightweight charts, and plain-English insights for business owners.
+- Added an in-app "How This Works" guide that explains the studio workflow in simple, non-technical language.
 
 ### Changed
 - Updated the dashboard brand snapshot card to reflect the new Brand Profile structure.
@@ -20,6 +22,7 @@ All notable changes to this project will be documented in this file.
 - Updated the Personas page copy and status badge handling to support active and inactive persona states.
 - Updated the Product Library and Content Ideas pages to use the new local-first data models and reusable workflow utilities.
 - Added publishing-specific typed models so future scheduling or posting integrations can plug into the current admin UI without a rewrite.
+- Updated analytics seed data, trend visuals, and navigation so the new reporting and help experiences fit the shared studio shell cleanly.
 
 ## [1.0.0] - 2026-03-22
 

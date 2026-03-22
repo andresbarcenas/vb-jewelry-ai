@@ -31,6 +31,13 @@ export function StudioIcon({ name, className }: StudioIconProps) {
           <rect {...sharedProps} x="3" y="13" width="8" height="8" rx="2" />
         </>
       )}
+      {name === "guide" && (
+        <>
+          <path {...sharedProps} d="M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z" />
+          <path {...sharedProps} d="M9.8 9.4a2.3 2.3 0 1 1 3.6 1.9c-.8.5-1.4 1.1-1.4 2.2" />
+          <path {...sharedProps} d="M12 16.8h.01" />
+        </>
+      )}
       {name === "brand" && (
         <>
           <path {...sharedProps} d="M12 4c3.5 0 6 2.4 6 5.4 0 4.1-6 10.6-6 10.6S6 13.5 6 9.4C6 6.4 8.5 4 12 4Z" />

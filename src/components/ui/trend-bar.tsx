@@ -3,9 +3,16 @@ interface TrendBarProps {
   value: number;
   maxValue: number;
   helper?: string;
+  valueLabel?: string;
 }
 
-export function TrendBar({ label, value, maxValue, helper }: TrendBarProps) {
+export function TrendBar({
+  label,
+  value,
+  maxValue,
+  helper,
+  valueLabel,
+}: TrendBarProps) {
   const width = Math.max((value / maxValue) * 100, 8);
 
   return (
@@ -15,7 +22,9 @@ export function TrendBar({ label, value, maxValue, helper }: TrendBarProps) {
           <p className="text-sm font-semibold text-foreground">{label}</p>
           {helper ? <p className="text-xs text-muted-foreground">{helper}</p> : null}
         </div>
-        <span className="text-sm font-semibold text-accent">{value}</span>
+        <span className="text-sm font-semibold text-accent">
+          {valueLabel ?? value}
+        </span>
       </div>
       <div className="h-2 rounded-full bg-accent-soft/60">
         <div

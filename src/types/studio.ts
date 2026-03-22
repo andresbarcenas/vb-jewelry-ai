@@ -1,5 +1,6 @@
 export type StudioIconName =
   | "dashboard"
+  | "guide"
   | "brand"
   | "personas"
   | "library"
@@ -179,30 +180,34 @@ export interface PublishingItem {
 export interface AnalyticsTrendPoint {
   label: string;
   value: number;
+  helper?: string;
 }
 
-export interface AnalyticsHighlight {
+export interface AnalyticsContentTypePerformance {
   label: string;
-  score: number;
+  engagementRate: number;
+  approvedPosts: number;
   note: string;
 }
 
-export interface AnalyticsPersonaLift {
+export interface AnalyticsPersonaPerformance {
   name: string;
-  lift: number;
+  engagementRate: number;
+  approvedPosts: number;
   note: string;
 }
 
 export interface AnalyticsSnapshot {
   timeframe: string;
-  views: number;
-  saves: number;
-  shareRate: number;
-  conversionLift: number;
-  topPersonas: AnalyticsPersonaLift[];
-  topThemes: AnalyticsHighlight[];
-  trend: AnalyticsTrendPoint[];
-  notes: string[];
+  totalPosts: number;
+  approvedPosts: number;
+  engagementRate: number;
+  bestPersona: string;
+  bestContentType: string;
+  weeklyPostVolume: AnalyticsTrendPoint[];
+  personaPerformance: AnalyticsPersonaPerformance[];
+  contentTypePerformance: AnalyticsContentTypePerformance[];
+  insights: string[];
 }
 
 export interface DashboardStat {
