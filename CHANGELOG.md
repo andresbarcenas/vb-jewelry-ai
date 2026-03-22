@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.1] - 2026-03-22
+
+### Changed
+- Refactored the OpenAI prompt builder into clear sections (`system instructions`, `brand context`, `persona context`, `product context`, `campaign request`) to improve output consistency and maintainability.
+- Strengthened generation guardrails to avoid generic influencer phrasing, exaggerated product claims, and spam-style CTAs.
+- Added field-level quality validation for generated ideas so short or generic values are replaced with premium, context-aware fallbacks before persistence.
+- Preserved and hardened persistence of generation context fields (`platform`, `mood`, `contentType`, `visualDirection`, `cta`) for cleaner downstream review handoff.
+- Added a clean `ready_for_review` action path (while keeping `send_to_review` compatibility) for future Review Queue integration.
+- Updated Phase 3 docs with a short note on why prompt quality directly impacts brand consistency.
+
 ## [1.2.0] - 2026-03-22
 
 ### Added

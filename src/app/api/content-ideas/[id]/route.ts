@@ -15,15 +15,17 @@ interface Params {
 }
 
 interface UpdateIdeaPayload {
-  action?: "save" | "send_to_review" | "archive" | "regenerate";
+  action?: "save" | "ready_for_review" | "send_to_review" | "archive" | "regenerate";
 }
 
-function mapStatus(action: "save" | "send_to_review" | "archive"): ContentIdeaStatus {
+function mapStatus(
+  action: "save" | "ready_for_review" | "send_to_review" | "archive",
+): ContentIdeaStatus {
   if (action === "save") {
     return "Saved";
   }
 
-  if (action === "send_to_review") {
+  if (action === "ready_for_review" || action === "send_to_review") {
     return "Ready for Review";
   }
 
@@ -68,10 +70,15 @@ export async function PATCH(request: Request, { params }: Params) {
       );
     }
 
+    const message =
+      payload.action === "ready_for_review" || payload.action === "send_to_review"
+        ? "Idea marked as ready for review."
+        : "Idea updated.";
+
     return NextResponse.json({
       idea: updated,
       source: "openai",
-      message: "Idea updated.",
+      message,
     });
   } catch (error) {
     return NextResponse.json(

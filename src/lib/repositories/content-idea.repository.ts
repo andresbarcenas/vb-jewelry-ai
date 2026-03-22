@@ -81,6 +81,11 @@ function buildTargetLaunchDate() {
   return nextDate.toISOString().slice(0, 10);
 }
 
+function ensureText(value: string | undefined, fallback: string) {
+  const normalized = value?.trim();
+  return normalized && normalized.length > 0 ? normalized : fallback;
+}
+
 function mapRecordToIdea(record: {
   id: string;
   title: string;
@@ -215,10 +220,16 @@ export async function generateAndSaveContentIdeas(
     products: [input.product.productName],
     theme: `${input.contentType} · ${input.mood}`,
     concept: idea.conceptSummary,
-    visualDirection: idea.visualDirection,
+    visualDirection: ensureText(
+      idea.visualDirection,
+      `Use close-up handcrafted detail shots for ${input.product.productName}.`,
+    ),
     hook: idea.hook,
     captionAngle: idea.captionAngle,
-    cta: idea.cta,
+    cta: ensureText(
+      idea.cta,
+      "Invite viewers to save this concept for their next jewelry styling post.",
+    ),
     priority: idea.priority,
     autoSaved: true,
     targetLaunch,
@@ -281,6 +292,20 @@ export async function updateContentIdeaStatus(
     },
   });
 
+  if (record && status === "Ready for Review") {
+    logEvent({
+      type: "approval",
+      domain: "review",
+      action: "mark-ready-for-review",
+      message: "Content idea marked as ready for review.",
+      metadata: {
+        ideaId: record.id,
+        personaId: record.personaId,
+        productId: record.productId,
+      },
+    });
+  }
+
   return record ? mapRecordToIdea(record) : null;
 }
 
@@ -342,9 +367,15 @@ export async function regenerateContentIdea(
       title: nextIdea.title,
       hook: nextIdea.hook,
       concept: nextIdea.conceptSummary,
-      visualDirection: nextIdea.visualDirection,
+      visualDirection: ensureText(
+        nextIdea.visualDirection,
+        `Use close-up handcrafted detail shots for ${product.productName}.`,
+      ),
       captionAngle: nextIdea.captionAngle,
-      cta: nextIdea.cta,
+      cta: ensureText(
+        nextIdea.cta,
+        "Invite viewers to save this concept for their next jewelry styling post.",
+      ),
       priority: nextIdea.priority,
       status: "Generated",
       autoSaved: true,

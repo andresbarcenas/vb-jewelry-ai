@@ -22,11 +22,11 @@ import {
   getGenerationOptions,
   listContentIdeas,
   listVideoReviewQueue,
+  markContentIdeaReadyForReview,
   regenerateContentIdea,
   rejectReview,
   requestVideoGeneration,
   saveContentIdea,
-  sendContentIdeaToReview,
   type ContentIdeaGenerationResult,
   type ContentGenerationOptions,
 } from "@/lib/services/content.service";
@@ -100,6 +100,7 @@ interface StudioDataContextValue {
     input: ContentIdeaGeneratorInput,
   ) => Promise<ContentIdeaGenerationResult>;
   saveContentIdea: (ideaId: string) => Promise<void>;
+  markContentIdeaReadyForReview: (ideaId: string) => Promise<void>;
   sendContentIdeaToReview: (ideaId: string) => Promise<void>;
   archiveContentIdea: (ideaId: string) => Promise<void>;
   regenerateContentIdea: (ideaId: string) => Promise<ContentIdeaGenerationResult | null>;
@@ -326,7 +327,7 @@ export function StudioDataProvider({ children }: StudioDataProviderProps) {
 
   const sendContentIdeaToReviewAction = useCallback(
     async (ideaId: string) => {
-      const updated = await sendContentIdeaToReview(ideaId);
+      const updated = await markContentIdeaReadyForReview(ideaId);
 
       if (updated?.idea) {
         setContentIdeasState((current) =>
@@ -338,6 +339,8 @@ export function StudioDataProvider({ children }: StudioDataProviderProps) {
     },
     [refreshAnalyticsViews],
   );
+
+  const markContentIdeaReadyForReviewAction = sendContentIdeaToReviewAction;
 
   const archiveContentIdeaAction = useCallback(
     async (ideaId: string) => {
@@ -452,6 +455,7 @@ export function StudioDataProvider({ children }: StudioDataProviderProps) {
       resetProducts: resetProductsAction,
       generateIdeas: generateIdeasAction,
       saveContentIdea: saveContentIdeaAction,
+      markContentIdeaReadyForReview: markContentIdeaReadyForReviewAction,
       sendContentIdeaToReview: sendContentIdeaToReviewAction,
       archiveContentIdea: archiveContentIdeaAction,
       regenerateContentIdea: regenerateContentIdeaAction,
@@ -489,6 +493,7 @@ export function StudioDataProvider({ children }: StudioDataProviderProps) {
       resetProductsAction,
       generateIdeasAction,
       saveContentIdeaAction,
+      markContentIdeaReadyForReviewAction,
       sendContentIdeaToReviewAction,
       archiveContentIdeaAction,
       regenerateContentIdeaAction,
@@ -555,6 +560,7 @@ export function useStudioContent() {
     generationOptions: context.generationOptions,
     generateIdeas: context.generateIdeas,
     saveContentIdea: context.saveContentIdea,
+    markContentIdeaReadyForReview: context.markContentIdeaReadyForReview,
     sendContentIdeaToReview: context.sendContentIdeaToReview,
     archiveContentIdea: context.archiveContentIdea,
     regenerateContentIdea: context.regenerateContentIdea,

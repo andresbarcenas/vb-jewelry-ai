@@ -116,10 +116,16 @@ export async function saveContentIdea(ideaId: string): Promise<IdeaActionRespons
 export async function sendContentIdeaToReview(
   ideaId: string,
 ): Promise<IdeaActionResponse | null> {
+  return markContentIdeaReadyForReview(ideaId);
+}
+
+export async function markContentIdeaReadyForReview(
+  ideaId: string,
+): Promise<IdeaActionResponse | null> {
   return requestJson<IdeaActionResponse>(`/api/content-ideas/${ideaId}`, {
     method: "PATCH",
     body: JSON.stringify({
-      action: "send_to_review",
+      action: "ready_for_review",
     }),
   });
 }

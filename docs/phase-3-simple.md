@@ -27,6 +27,10 @@ Ideas are auto-saved when generated, and the UI explains that clearly.
 - The page layout stays clean and familiar.
 - The app still feels business-friendly and non-technical.
 
+## Why prompt quality matters
+
+If the AI prompt is vague, results can drift away from your brand tone. This phase improves prompt structure and safety rules so ideas stay premium, handmade-feeling, and easier to approve.
+
 ## What is still mocked
 
 These parts are still mocked for now:

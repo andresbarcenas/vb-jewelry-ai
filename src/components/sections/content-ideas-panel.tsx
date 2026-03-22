@@ -43,7 +43,7 @@ export function ContentIdeasPanel() {
     contentIdeas,
     generateIdeas,
     saveContentIdea,
-    sendContentIdeaToReview,
+    markContentIdeaReadyForReview,
     archiveContentIdea,
     regenerateContentIdea,
     generationOptions,
@@ -169,7 +169,7 @@ export function ContentIdeasPanel() {
       }
 
       if (action === "review") {
-        await sendContentIdeaToReview(ideaId);
+        await markContentIdeaReadyForReview(ideaId);
         setNotice("Idea marked as ready for review.");
       }
 

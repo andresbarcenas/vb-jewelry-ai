@@ -96,7 +96,15 @@ Implemented:
 - fallback generation path when OpenAI is unavailable
 - structured logging for generation lifecycle and failures
 
-## 7) Scope boundaries preserved
+## 7) Prompt quality and brand consistency
+
+Prompt quality directly affects how consistent the brand feels across generated ideas.
+
+- Better prompt structure (system + brand + persona + product + campaign request) keeps output aligned with VB Jewelry voice.
+- Explicit guardrails against generic influencer phrasing, exaggerated claims, and spammy CTAs reduce off-brand copy.
+- Field-level validation with premium fallbacks ensures ideas stay useful for review handoff even when model output is uneven.
+
+## 8) Scope boundaries preserved
 
 Still not implemented in Phase 3:
 
