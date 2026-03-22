@@ -6,7 +6,7 @@ export default function PersonasPage() {
     <>
       <PageHeader
         title="Personas"
-        description="Create and manage up to five fictional model profiles so the team can present jewelry through consistent, reusable style perspectives."
+        description="Use personas as a creative control center for styling direction, product fit, and future AI prompt consistency."
       />
       <PersonasPanel />
     </>

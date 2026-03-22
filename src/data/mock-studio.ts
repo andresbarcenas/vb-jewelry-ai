@@ -129,46 +129,136 @@ export const personas: Persona[] = [
 
 export const personaProfiles: AiPersonaProfile[] = [
   {
-    id: "persona-profile-01",
+    id: "persona-lena",
     name: "Lena",
-    ageRange: "28-34",
-    styleVibe: "Clean tailoring, soft gold layers, and polished everyday looks.",
+    label: "Polished everyday",
+    ageRange: "27-35",
+    styleVibe:
+      "Clean tailoring, soft layering, and polished everyday outfits that still feel relaxed.",
     audienceFit:
-      "Great for customers who want wearable jewelry that still feels elevated and intentional.",
-    scenarioExamples: [
-      "Morning coffee and blazer styling reel",
-      "Desk-to-dinner necklace layering clip",
-      "Minimal gold stack close-up for everyday outfits",
+      "Best for customers who want wearable pieces they can style for work, errands, and easy evenings.",
+    bestUseCases: ["everyday", "modern minimal"],
+    contentTone: "Helpful, polished, and quietly confident.",
+    recommendedScenes: [
+      "Morning coffee styling with a blazer and chain layers",
+      "Desk-to-dinner outfit transition with one hero necklace",
+      "Minimal ring stack close-up in natural daylight",
     ],
-    status: "Active",
+    preferredColors: ["Soft gold", "Cream", "Sand"],
+    jewelryFit:
+      "Layering necklaces, slim ring stacks, small hoops, and lightweight bracelets.",
+    avoidList: [
+      "Overly dramatic evening makeup",
+      "Loud trend slang",
+      "Busy patterned backgrounds",
+    ],
+    promptStarter:
+      "Create a polished everyday Instagram Reel featuring [PRODUCT] styled by Lena in a clean, wearable outfit with soft natural light.",
+    recommendedFor: {
+      bestContentTypes: ["lifestyle", "casual"],
+      bestMoods: ["Elevated", "Minimal", "Warm"],
+      bestProductCategories: ["Necklaces", "Rings", "Bracelets"],
+    },
+    status: "active",
   },
   {
-    id: "persona-profile-02",
-    name: "Marisol",
-    ageRange: "32-40",
-    styleVibe: "Warm, artistic dressing with texture, movement, and handmade details.",
+    id: "persona-sofia",
+    name: "Sofia",
+    label: "Event ready",
+    ageRange: "29-38",
+    styleVibe:
+      "Event-ready elegance with stronger silhouettes, polished beauty, and standout jewelry moments.",
     audienceFit:
-      "Fits shoppers who value craftsmanship, softer styling, and jewelry that feels personal.",
-    scenarioExamples: [
-      "Studio table styling with handmade textures",
-      "Close-up earring movement in natural light",
-      "Soft neutral outfit with one statement piece",
+      "Ideal for customers shopping for special dinners, weddings, celebrations, and refined evening style.",
+    bestUseCases: ["event"],
+    contentTone: "Confident, elevated, and occasion-aware.",
+    recommendedScenes: [
+      "Evening-ready mirror reveal with statement earrings",
+      "Close-up pendant styling with a satin neckline",
+      "Before-and-after look showing one bold jewelry switch",
     ],
-    status: "Active",
+    preferredColors: ["Champagne", "Black", "Warm gold"],
+    jewelryFit:
+      "Statement earrings, occasion pendants, cuffs, and polished sets for elevated outfits.",
+    avoidList: [
+      "Casual loungewear scenes",
+      "Low-light footage that hides product detail",
+      "Overcrowded accessories competing with the hero piece",
+    ],
+    promptStarter:
+      "Create an event-ready Instagram Reel with Sofia featuring [PRODUCT], styled for a polished evening look with graceful movement and close-up detail shots.",
+    recommendedFor: {
+      bestContentTypes: ["luxury", "story"],
+      bestMoods: ["Elevated", "Editorial", "Romantic"],
+      bestProductCategories: ["Earrings", "Necklaces", "Bracelets"],
+    },
+    status: "active",
   },
   {
-    id: "persona-profile-03",
-    name: "Camille",
-    ageRange: "35-45",
-    styleVibe: "Refined collector energy with strong silhouettes and heirloom-inspired details.",
+    id: "persona-camila",
+    name: "Camila",
+    label: "Warm artisan lifestyle",
+    ageRange: "30-42",
+    styleVibe:
+      "Warm, tactile lifestyle aesthetic focused on handmade details, texture, and personal storytelling.",
     audienceFit:
-      "Best for repeat customers looking for investment-feeling pieces and thoughtful styling.",
-    scenarioExamples: [
-      "Evening outfit finished with one bold cuff",
-      "Collector tray flat lay with stacked rings",
-      "Occasion-ready pendant styled with a dark dress",
+      "Great for customers who care about craftsmanship and want jewelry that feels meaningful, not mass-made.",
+    bestUseCases: ["handmade story", "everyday"],
+    contentTone: "Warm, personal, and craft-forward.",
+    recommendedScenes: [
+      "Studio table textures with close-up hand movement",
+      "Artisan storytelling voiceover with product macros",
+      "Natural-light lifestyle clip with one handcrafted hero piece",
     ],
-    status: "Inactive",
+    preferredColors: ["Muted sage", "Cream", "Warm gold"],
+    jewelryFit:
+      "Hand-textured rings, artisan pendants, brushed finishes, and handcrafted statement accents.",
+    avoidList: [
+      "Cold studio lighting",
+      "Fast trend-driven edits",
+      "Hard-sell promotional language",
+    ],
+    promptStarter:
+      "Create a warm artisan lifestyle Reel with Camila featuring [PRODUCT], highlighting handmade texture, process-inspired visuals, and a personal storytelling tone.",
+    recommendedFor: {
+      bestContentTypes: ["story", "gift idea", "lifestyle"],
+      bestMoods: ["Warm", "Romantic", "Elevated"],
+      bestProductCategories: ["Rings", "Necklaces", "Earrings"],
+    },
+    status: "active",
+  },
+  {
+    id: "persona-maya",
+    name: "Maya",
+    label: "Trend-aware minimal",
+    ageRange: "24-32",
+    styleVibe:
+      "Modern minimal styling with trend awareness, clean shapes, and subtle fashion-forward details.",
+    audienceFit:
+      "Best for younger trend-aware shoppers who want current looks without losing a refined brand feel.",
+    bestUseCases: ["modern minimal", "event"],
+    contentTone: "Fresh, modern, and concise.",
+    recommendedScenes: [
+      "Quick outfit switch showing one modern jewelry accent",
+      "Minimal mirror check with trending silhouette styling",
+      "Close-up product detail with clean background and motion",
+    ],
+    preferredColors: ["Silver", "Soft gold", "Ivory"],
+    jewelryFit:
+      "Clean-line hoops, modern cuffs, geometric pendants, and minimal stacking sets.",
+    avoidList: [
+      "Vintage-heavy props",
+      "Overly ornate styling",
+      "Long-form storytelling captions",
+    ],
+    promptStarter:
+      "Create a modern minimal Reel with Maya featuring [PRODUCT], using clean composition, trend-aware styling, and concise caption language.",
+    recommendedFor: {
+      bestContentTypes: ["trendy", "lifestyle", "luxury"],
+      bestMoods: ["Minimal", "Editorial", "Playful"],
+      bestProductCategories: ["Earrings", "Bracelets", "Necklaces"],
+    },
+    status: "inactive",
   },
 ];
 

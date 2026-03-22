@@ -1,11 +1,33 @@
+export type PersonaStatus = "active" | "inactive";
+
+export type PersonaUseCaseTag =
+  | "everyday"
+  | "event"
+  | "handmade story"
+  | "modern minimal";
+
+export interface PersonaRecommendedFor {
+  bestContentTypes: string[];
+  bestMoods: string[];
+  bestProductCategories: string[];
+}
+
 export interface AiPersonaProfile {
   id: string;
   name: string;
+  label: string;
   ageRange: string;
   styleVibe: string;
   audienceFit: string;
-  scenarioExamples: string[];
-  status: "Active" | "Inactive";
+  bestUseCases: PersonaUseCaseTag[];
+  contentTone: string;
+  recommendedScenes: string[];
+  preferredColors: string[];
+  jewelryFit: string;
+  avoidList: string[];
+  promptStarter: string;
+  recommendedFor: PersonaRecommendedFor;
+  status: PersonaStatus;
 }
 
 export interface Persona {

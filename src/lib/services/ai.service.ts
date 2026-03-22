@@ -111,17 +111,17 @@ function toTitleCase(value: string) {
 
 function buildConceptSummary(input: ContentIdeaGeneratorInput, index: number) {
   const scenario =
-    input.persona.scenarioExamples[index % input.persona.scenarioExamples.length];
+    input.persona.recommendedScenes[index % input.persona.recommendedScenes.length];
   const styleTag = input.product.styleTags[index % input.product.styleTags.length];
 
-  return `${input.persona.name} presents ${input.product.productName} as a ${toTitleCase(input.contentType)} idea for ${input.platform}. The Reel leans into a ${input.mood.toLowerCase()} mood, highlights the ${styleTag.toLowerCase()} angle, and uses a scenario like "${scenario}" to make the product feel easy to imagine in real life.`;
+  return `${input.persona.name} presents ${input.product.productName} as a ${toTitleCase(input.contentType)} idea for ${input.platform}. The Reel leans into a ${input.mood.toLowerCase()} mood, highlights the ${styleTag.toLowerCase()} angle, and uses a scene like "${scenario}" to keep visuals consistent with this persona.`;
 }
 
 function buildCaptionIdea(input: ContentIdeaGeneratorInput, index: number) {
   const scenario =
-    input.persona.scenarioExamples[index % input.persona.scenarioExamples.length];
+    input.persona.recommendedScenes[index % input.persona.recommendedScenes.length];
 
-  return `${input.persona.name} gives ${input.product.productName} a ${input.mood.toLowerCase()} ${input.contentType} angle for ${input.product.category.toLowerCase()} content. Tie the caption to ${scenario.toLowerCase()} and mention the ${input.product.material.toLowerCase()} finish with a tone that feels ${input.persona.styleVibe.toLowerCase()}.`;
+  return `${input.persona.name} gives ${input.product.productName} a ${input.mood.toLowerCase()} ${input.contentType} angle for ${input.product.category.toLowerCase()} content. Tie the caption to ${scenario.toLowerCase()} and mention the ${input.product.material.toLowerCase()} finish using a ${input.persona.contentTone.toLowerCase()} voice.`;
 }
 
 export async function generateContentIdeas(

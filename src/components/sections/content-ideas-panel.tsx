@@ -53,7 +53,7 @@ export function ContentIdeasPanel() {
   const typeOptions = generationOptions.contentTypes;
 
   const defaultPersonaId =
-    personas.find((persona) => persona.status === "Active")?.id ?? personas[0]?.id ?? "";
+    personas.find((persona) => persona.status === "active")?.id ?? personas[0]?.id ?? "";
   const defaultProductId = products[0]?.id ?? "";
 
   useEffect(() => {
@@ -148,7 +148,7 @@ export function ContentIdeasPanel() {
               >
                 {personas.map((persona) => (
                   <option key={persona.id} value={persona.id}>
-                    {persona.name} ({persona.status})
+                    {persona.name} ({persona.status === "active" ? "Active" : "Inactive"})
                   </option>
                 ))}
               </select>

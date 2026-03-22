@@ -1,5 +1,10 @@
 import { personaProfiles as defaultPersonas } from "@/data/mock-studio";
-import type { AiPersonaProfile } from "@/types/studio";
+import type {
+  AiPersonaProfile,
+  PersonaRecommendedFor,
+  PersonaStatus,
+  PersonaUseCaseTag,
+} from "@/types/studio";
 import {
   readPersistedValue,
   resetPersistedValue,
@@ -8,6 +13,12 @@ import {
 
 const STORAGE_KEY = "vb-jewelry-ai.service.personas";
 const MAX_PERSONAS = 5;
+const PERSONA_USE_CASE_TAGS: PersonaUseCaseTag[] = [
+  "everyday",
+  "event",
+  "handmade story",
+  "modern minimal",
+];
 
 function cleanString(value: unknown, fallback: string) {
   return typeof value === "string" ? value.trim() : fallback;
@@ -25,12 +36,67 @@ function cleanStringList(value: unknown, fallback: string[]) {
   return cleaned.length > 0 ? cleaned : fallback;
 }
 
-function normalizeStatus(value: unknown, fallback: AiPersonaProfile["status"]) {
-  if (value === "Active" || value === "Inactive") {
+function normalizeStatus(value: unknown, fallback: PersonaStatus) {
+  if (value === "active" || value === "inactive") {
     return value;
   }
 
+  if (value === "Active") {
+    return "active";
+  }
+
+  if (value === "Inactive") {
+    return "inactive";
+  }
+
   return fallback;
+}
+
+function normalizeUseCaseTag(value: string): PersonaUseCaseTag | null {
+  const normalized = value.trim().toLowerCase();
+
+  return PERSONA_USE_CASE_TAGS.includes(normalized as PersonaUseCaseTag)
+    ? (normalized as PersonaUseCaseTag)
+    : null;
+}
+
+function cleanUseCaseTags(
+  value: unknown,
+  fallback: PersonaUseCaseTag[],
+): PersonaUseCaseTag[] {
+  if (!Array.isArray(value)) {
+    return fallback;
+  }
+
+  const cleaned = Array.from(
+    new Set(
+      value
+        .map((item) => (typeof item === "string" ? normalizeUseCaseTag(item) : null))
+        .filter((item): item is PersonaUseCaseTag => item !== null),
+    ),
+  );
+
+  return cleaned.length > 0 ? cleaned : fallback;
+}
+
+function normalizeRecommendedFor(
+  raw: unknown,
+  fallback: PersonaRecommendedFor,
+): PersonaRecommendedFor {
+  const candidate =
+    raw && typeof raw === "object" ? (raw as Partial<PersonaRecommendedFor>) : {};
+
+  return {
+    bestContentTypes: cleanStringList(
+      candidate.bestContentTypes,
+      fallback.bestContentTypes,
+    ),
+    bestMoods: cleanStringList(candidate.bestMoods, fallback.bestMoods),
+    bestProductCategories: cleanStringList(
+      candidate.bestProductCategories,
+      fallback.bestProductCategories,
+    ),
+  };
 }
 
 function normalizePersona(raw: unknown, fallback?: AiPersonaProfile): AiPersonaProfile | null {
@@ -39,27 +105,66 @@ function normalizePersona(raw: unknown, fallback?: AiPersonaProfile): AiPersonaP
   }
 
   const candidate = raw as Partial<AiPersonaProfile>;
+  const fallbackRecommendedFor: PersonaRecommendedFor = fallback?.recommendedFor ?? {
+    bestContentTypes: ["lifestyle"],
+    bestMoods: ["Elevated"],
+    bestProductCategories: ["Necklaces"],
+  };
+  const recommendedFor = normalizeRecommendedFor(
+    candidate.recommendedFor,
+    fallbackRecommendedFor,
+  );
+  const recommendedScenes = cleanStringList(
+    (candidate as Partial<AiPersonaProfile> & { scenarioExamples?: unknown })
+      .recommendedScenes ??
+      (candidate as Partial<AiPersonaProfile> & { scenarioExamples?: unknown })
+        .scenarioExamples,
+    fallback?.recommendedScenes ?? [],
+  );
 
   const normalized: AiPersonaProfile = {
     id: cleanString(candidate.id, fallback?.id ?? ""),
     name: cleanString(candidate.name, fallback?.name ?? ""),
+    label: cleanString(
+      candidate.label,
+      fallback?.label ?? `${cleanString(candidate.name, "Persona")} profile`,
+    ),
     ageRange: cleanString(candidate.ageRange, fallback?.ageRange ?? ""),
     styleVibe: cleanString(candidate.styleVibe, fallback?.styleVibe ?? ""),
     audienceFit: cleanString(candidate.audienceFit, fallback?.audienceFit ?? ""),
-    scenarioExamples: cleanStringList(
-      candidate.scenarioExamples,
-      fallback?.scenarioExamples ?? [],
+    bestUseCases: cleanUseCaseTags(candidate.bestUseCases, fallback?.bestUseCases ?? [
+      "everyday",
+    ]),
+    contentTone: cleanString(candidate.contentTone, fallback?.contentTone ?? ""),
+    recommendedScenes,
+    preferredColors: cleanStringList(
+      candidate.preferredColors,
+      fallback?.preferredColors ?? [],
     ),
-    status: normalizeStatus(candidate.status, fallback?.status ?? "Active"),
+    jewelryFit: cleanString(candidate.jewelryFit, fallback?.jewelryFit ?? ""),
+    avoidList: cleanStringList(candidate.avoidList, fallback?.avoidList ?? []),
+    promptStarter: cleanString(candidate.promptStarter, fallback?.promptStarter ?? ""),
+    recommendedFor,
+    status: normalizeStatus(candidate.status, fallback?.status ?? "active"),
   };
 
   if (
     !normalized.id ||
     !normalized.name ||
+    !normalized.label ||
     !normalized.ageRange ||
     !normalized.styleVibe ||
     !normalized.audienceFit ||
-    normalized.scenarioExamples.length === 0
+    normalized.bestUseCases.length === 0 ||
+    !normalized.contentTone ||
+    normalized.recommendedScenes.length === 0 ||
+    normalized.preferredColors.length === 0 ||
+    !normalized.jewelryFit ||
+    normalized.avoidList.length === 0 ||
+    !normalized.promptStarter ||
+    normalized.recommendedFor.bestContentTypes.length === 0 ||
+    normalized.recommendedFor.bestMoods.length === 0 ||
+    normalized.recommendedFor.bestProductCategories.length === 0
   ) {
     return fallback ?? null;
   }

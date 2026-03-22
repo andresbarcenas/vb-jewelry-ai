@@ -20,6 +20,8 @@ All notable changes to this project will be documented in this file.
 - Added a structured logger (`src/lib/logger.ts`) for content generation, approvals/rejections, publish attempts, and job lifecycle events.
 - Added typed provider placeholders in `src/config/app.config.ts` and a dashboard System Status panel showing AI, video, and publishing connectivity states.
 - Added architecture docs (`docs/architecture.md` and `docs/architecture-simple.md`) for both technical and non-technical audiences.
+- Upgraded Personas into a creative control center with richer cards, quick-tag filtering, detail view sections, and a default prompt preview area.
+- Added four realistic VB Jewelry starter personas for generation planning: Lena (polished everyday), Sofia (event ready), Camila (warm artisan lifestyle), and Maya (trend-aware minimal).
 
 ### Changed
 - Updated the dashboard brand snapshot card to reflect the new Brand Profile structure.
@@ -33,6 +35,9 @@ All notable changes to this project will be documented in this file.
 - Split shared domain models into `src/types/brand.ts`, `persona.ts`, `product.ts`, `content.ts`, `video.ts`, and `publishing.ts` while keeping `src/types/studio.ts` as a compatibility barrel.
 - Converted `src/data/mock-studio.ts` into a seed/default data source for services and retired legacy standalone local-store modules from UI usage.
 - Verified `pnpm lint`, `pnpm typecheck`, and `pnpm build` pass, and smoke-tested all studio routes including `/how-this-works`.
+- Expanded the persona model for AI-ready creative control (`label`, `bestUseCases`, `contentTone`, `recommendedScenes`, `preferredColors`, `jewelryFit`, `avoidList`, `promptStarter`, and `recommendedFor` guidance).
+- Updated persona service normalization to support new fields while handling older local mock data formats.
+- Updated content-idea persona usage to align with new persona status values and scene/tone fields.
 
 ## [1.0.0] - 2026-03-22
 
