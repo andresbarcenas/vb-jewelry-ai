@@ -265,6 +265,15 @@ export async function getPersonas(): Promise<AiPersonaProfile[]> {
   return normalizePersonas(normalized, defaultPersonas);
 }
 
+export async function listPersonas(): Promise<AiPersonaProfile[]> {
+  return getPersonas();
+}
+
+export async function getPersonaById(personaId: string): Promise<AiPersonaProfile | null> {
+  const personas = await getPersonas();
+  return personas.find((item) => item.id === personaId) ?? null;
+}
+
 export async function createPersona(persona: AiPersonaProfile): Promise<AiPersonaProfile[]> {
   const current = await getPersonas();
   const candidate = normalizePersona(persona);

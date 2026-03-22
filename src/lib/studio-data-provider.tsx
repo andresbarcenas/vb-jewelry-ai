@@ -16,13 +16,18 @@ import {
   type SystemStatusItem,
 } from "@/lib/services/analytics.service";
 import {
+  archiveContentIdea,
   approveReview,
   generateIdeas,
   getGenerationOptions,
   listContentIdeas,
   listVideoReviewQueue,
+  regenerateContentIdea,
   rejectReview,
   requestVideoGeneration,
+  saveContentIdea,
+  sendContentIdeaToReview,
+  type ContentIdeaGenerationResult,
   type ContentGenerationOptions,
 } from "@/lib/services/content.service";
 import {
@@ -59,7 +64,6 @@ import type {
   BrandProfile,
   ContentIdea,
   ContentIdeaGeneratorInput,
-  GeneratedContentIdeaCard,
   ProductLibraryItem,
   PublishingQueueEntry,
   VideoReviewItem,
@@ -94,7 +98,11 @@ interface StudioDataContextValue {
   resetProducts: () => Promise<void>;
   generateIdeas: (
     input: ContentIdeaGeneratorInput,
-  ) => Promise<GeneratedContentIdeaCard[]>;
+  ) => Promise<ContentIdeaGenerationResult>;
+  saveContentIdea: (ideaId: string) => Promise<void>;
+  sendContentIdeaToReview: (ideaId: string) => Promise<void>;
+  archiveContentIdea: (ideaId: string) => Promise<void>;
+  regenerateContentIdea: (ideaId: string) => Promise<ContentIdeaGenerationResult | null>;
   approveReview: (reviewId: string, reviewer: string, notes: string) => Promise<void>;
   rejectReview: (reviewId: string, reviewer: string, notes: string) => Promise<void>;
   requestVideoGeneration: (reviewId: string) => Promise<unknown>;
@@ -291,8 +299,81 @@ export function StudioDataProvider({ children }: StudioDataProviderProps) {
   }, []);
 
   const generateIdeasAction = useCallback(
-    async (input: ContentIdeaGeneratorInput) => generateIdeas(input),
-    [],
+    async (input: ContentIdeaGeneratorInput) => {
+      const result = await generateIdeas(input);
+      const refreshedIdeas = await listContentIdeas();
+      setContentIdeasState(refreshedIdeas);
+      await refreshAnalyticsViews();
+      return result;
+    },
+    [refreshAnalyticsViews],
+  );
+
+  const saveContentIdeaAction = useCallback(
+    async (ideaId: string) => {
+      const updated = await saveContentIdea(ideaId);
+
+      if (updated?.idea) {
+        setContentIdeasState((current) =>
+          current.map((item) => (item.id === updated.idea.id ? updated.idea : item)),
+        );
+      }
+
+      await refreshAnalyticsViews();
+    },
+    [refreshAnalyticsViews],
+  );
+
+  const sendContentIdeaToReviewAction = useCallback(
+    async (ideaId: string) => {
+      const updated = await sendContentIdeaToReview(ideaId);
+
+      if (updated?.idea) {
+        setContentIdeasState((current) =>
+          current.map((item) => (item.id === updated.idea.id ? updated.idea : item)),
+        );
+      }
+
+      await refreshAnalyticsViews();
+    },
+    [refreshAnalyticsViews],
+  );
+
+  const archiveContentIdeaAction = useCallback(
+    async (ideaId: string) => {
+      const updated = await archiveContentIdea(ideaId);
+
+      if (updated?.idea) {
+        setContentIdeasState((current) =>
+          current.map((item) => (item.id === updated.idea.id ? updated.idea : item)),
+        );
+      }
+
+      await refreshAnalyticsViews();
+    },
+    [refreshAnalyticsViews],
+  );
+
+  const regenerateContentIdeaAction = useCallback(
+    async (ideaId: string) => {
+      const updated = await regenerateContentIdea(ideaId);
+
+      if (updated?.idea) {
+        setContentIdeasState((current) =>
+          current.map((item) => (item.id === updated.idea.id ? updated.idea : item)),
+        );
+      }
+
+      await refreshAnalyticsViews();
+      return updated
+        ? {
+            ideas: [updated.idea],
+            source: updated.source ?? "openai",
+            message: updated.message ?? "Idea regenerated.",
+          }
+        : null;
+    },
+    [refreshAnalyticsViews],
   );
 
   const approveReviewAction = useCallback(
@@ -370,6 +451,10 @@ export function StudioDataProvider({ children }: StudioDataProviderProps) {
       deleteProduct: deleteProductAction,
       resetProducts: resetProductsAction,
       generateIdeas: generateIdeasAction,
+      saveContentIdea: saveContentIdeaAction,
+      sendContentIdeaToReview: sendContentIdeaToReviewAction,
+      archiveContentIdea: archiveContentIdeaAction,
+      regenerateContentIdea: regenerateContentIdeaAction,
       approveReview: approveReviewAction,
       rejectReview: rejectReviewAction,
       requestVideoGeneration: requestVideoGenerationAction,
@@ -403,6 +488,10 @@ export function StudioDataProvider({ children }: StudioDataProviderProps) {
       deleteProductAction,
       resetProductsAction,
       generateIdeasAction,
+      saveContentIdeaAction,
+      sendContentIdeaToReviewAction,
+      archiveContentIdeaAction,
+      regenerateContentIdeaAction,
       approveReviewAction,
       rejectReviewAction,
       requestVideoGenerationAction,
@@ -465,6 +554,10 @@ export function useStudioContent() {
     videoReviewQueue: context.videoReviewQueue,
     generationOptions: context.generationOptions,
     generateIdeas: context.generateIdeas,
+    saveContentIdea: context.saveContentIdea,
+    sendContentIdeaToReview: context.sendContentIdeaToReview,
+    archiveContentIdea: context.archiveContentIdea,
+    regenerateContentIdea: context.regenerateContentIdea,
     approveReview: context.approveReview,
     rejectReview: context.rejectReview,
     requestVideoGeneration: context.requestVideoGeneration,

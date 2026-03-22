@@ -27,6 +27,12 @@ Install dependencies:
 pnpm install
 ```
 
+Copy environment variables:
+
+```bash
+cp .env.example .env
+```
+
 Start development server:
 
 ```bash
@@ -34,6 +40,8 @@ pnpm dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
+
+To enable real AI idea generation in Phase 3, set `OPENAI_API_KEY` in `.env`.
 
 Build and quality checks:
 
@@ -124,6 +132,12 @@ docker compose exec web pnpm db:seed
 
 - `docs/phase-2c-simple.md`
   Plain-English summary of what now persists in the database and what remains mocked.
+
+- `docs/phase-3.md`
+  Technical summary of real OpenAI-powered Content Ideas generation and persistence.
+
+- `docs/phase-3-simple.md`
+  Plain-English summary of what AI generation now does and what is still mocked.
 
 ## How mock data is wired
 

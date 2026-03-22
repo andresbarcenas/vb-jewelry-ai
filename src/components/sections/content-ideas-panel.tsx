@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SectionCard } from "@/components/ui/section-card";
+import { StatusBadge } from "@/components/ui/status-badge";
 import {
   useStudioContent,
   useStudioPersonas,
@@ -12,7 +13,6 @@ import type {
   ContentIdeaType,
   ContentMood,
   ContentPlatform,
-  GeneratedContentIdeaCard,
 } from "@/types/studio";
 
 interface FieldShellProps {
@@ -39,14 +39,26 @@ function FieldShell({ label, helperText, children }: FieldShellProps) {
 export function ContentIdeasPanel() {
   const { personas } = useStudioPersonas();
   const { products } = useStudioProducts();
-  const { generateIdeas, generationOptions } = useStudioContent();
+  const {
+    contentIdeas,
+    generateIdeas,
+    saveContentIdea,
+    sendContentIdeaToReview,
+    archiveContentIdea,
+    regenerateContentIdea,
+    generationOptions,
+  } = useStudioContent();
   const [requestedPersonaId, setRequestedPersonaId] = useState("");
   const [requestedProductId, setRequestedProductId] = useState("");
   const [platform, setPlatform] = useState<ContentPlatform>("Instagram Reels");
   const [mood, setMood] = useState<ContentMood>("Elevated");
   const [contentType, setContentType] = useState<ContentIdeaType>("lifestyle");
-  const [generatedIdeas, setGeneratedIdeas] = useState<GeneratedContentIdeaCard[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [activeIdeaId, setActiveIdeaId] = useState<string | null>(null);
+  const [activeIdeaAction, setActiveIdeaAction] = useState("");
+  const [notice, setNotice] = useState("");
+  const [error, setError] = useState("");
+  const [recentIdeaIds, setRecentIdeaIds] = useState<string[]>([]);
 
   const platformOptions = generationOptions.platforms;
   const moodOptions = generationOptions.moods;
@@ -97,16 +109,30 @@ export function ContentIdeasPanel() {
   const selectedProduct = products.find((product) => product.id === selectedProductId);
 
   const canGenerate = Boolean(selectedPersona && selectedProduct) && !isGenerating;
+  const ideas = [...contentIdeas]
+    .filter((idea) => idea.status !== "Archived")
+    .sort((left, right) => {
+    const leftTime = left.updatedAt ? new Date(left.updatedAt).getTime() : 0;
+    const rightTime = right.updatedAt ? new Date(right.updatedAt).getTime() : 0;
+
+    if (leftTime === rightTime) {
+      return right.id.localeCompare(left.id);
+    }
+
+    return rightTime - leftTime;
+    });
 
   async function handleGenerateIdeas() {
     if (!selectedPersona || !selectedProduct) {
       return;
     }
 
+    setError("");
+    setNotice("");
     setIsGenerating(true);
 
     try {
-      const ideas = await generateIdeas({
+      const result = await generateIdeas({
         persona: selectedPersona,
         product: selectedProduct,
         platform,
@@ -114,9 +140,62 @@ export function ContentIdeasPanel() {
         contentType,
       });
 
-      setGeneratedIdeas(ideas);
+      setRecentIdeaIds(result.ideas.map((idea) => idea.id));
+      setNotice(
+        result.source === "openai"
+          ? `${result.ideas.length} ideas generated and auto-saved.`
+          : `${result.ideas.length} fallback ideas generated and auto-saved. OpenAI was unavailable this time.`,
+      );
+    } catch {
+      setError("We could not generate ideas right now. Please try again in a moment.");
     } finally {
       setIsGenerating(false);
+    }
+  }
+
+  async function handleIdeaAction(
+    ideaId: string,
+    action: "save" | "review" | "archive" | "regenerate",
+  ) {
+    setError("");
+    setNotice("");
+    setActiveIdeaId(ideaId);
+    setActiveIdeaAction(action);
+
+    try {
+      if (action === "save") {
+        await saveContentIdea(ideaId);
+        setNotice("Idea marked as saved.");
+      }
+
+      if (action === "review") {
+        await sendContentIdeaToReview(ideaId);
+        setNotice("Idea marked as ready for review.");
+      }
+
+      if (action === "archive") {
+        await archiveContentIdea(ideaId);
+        setNotice("Idea archived.");
+      }
+
+      if (action === "regenerate") {
+        const result = await regenerateContentIdea(ideaId);
+        if (result) {
+          setRecentIdeaIds(result.ideas.map((idea) => idea.id));
+          setNotice(
+            result.source === "openai"
+              ? "Idea regenerated with OpenAI and auto-saved."
+              : "Idea regenerated with fallback content and auto-saved.",
+          );
+        } else {
+          setError("We could not regenerate this idea.");
+        }
+      }
+    } catch {
+      setError("We could not complete that action. Please try again.");
+    } finally {
+      setActiveIdeaId(null);
+      setActiveIdeaAction("");
     }
   }
 
@@ -124,7 +203,7 @@ export function ContentIdeasPanel() {
     return (
       <EmptyState
         title="Create personas and products first"
-        description="The Content Ideas generator needs at least one persona and one product in the library before it can produce mock ideas."
+        description="The Content Ideas generator needs at least one persona and one product in the library before it can generate ideas."
       />
     );
   }
@@ -133,7 +212,7 @@ export function ContentIdeasPanel() {
     <div className="space-y-5">
       <SectionCard
         title="Idea generator"
-        description="Choose the persona, product, and creative direction you want, then generate five mocked content ideas. The generation service is set up so this step can later call an AI API."
+        description="Choose the persona, product, and creative direction you want, then generate AI-assisted content ideas that are automatically saved."
       >
         <div className="grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
           <div className="grid gap-5 md:grid-cols-2">
@@ -274,20 +353,47 @@ export function ContentIdeasPanel() {
         </div>
       </SectionCard>
 
-      {generatedIdeas.length === 0 ? (
+      {notice ? (
+        <div className="rounded-[20px] border border-success/20 bg-success/10 px-4 py-3 text-sm font-medium text-success">
+          {notice}
+        </div>
+      ) : null}
+
+      {error ? (
+        <div className="rounded-[20px] border border-danger/20 bg-danger/10 px-4 py-3 text-sm font-medium text-danger">
+          {error}
+        </div>
+      ) : null}
+
+      {ideas.length === 0 ? (
         <EmptyState
           title="No ideas generated yet"
-          description="Choose your inputs above and click Generate Ideas to create five mocked content cards."
+          description="Choose your inputs above and click Generate Ideas to create and auto-save new content cards."
         />
       ) : (
-        <div className="grid gap-5 xl:grid-cols-2">
-          {generatedIdeas.map((idea, index) => (
+        <div className="space-y-4">
+          <div className="rounded-[20px] border border-border/80 bg-white/75 px-4 py-3 text-sm text-muted-foreground">
+            Ideas are auto-saved when generated. Use <span className="font-semibold text-foreground">Save</span> to mark keepers, <span className="font-semibold text-foreground">Send to Review</span> to mark review-ready ideas, and <span className="font-semibold text-foreground">Archive</span> to hide older options.
+          </div>
+
+          <div className="grid gap-5 xl:grid-cols-2">
+            {ideas.map((idea) => (
             <SectionCard
               key={idea.id}
-              title={`Generated idea ${index + 1}`}
-              description={`${contentType} · ${mood} · ${platform}`}
+              title={idea.title}
+              description={`${idea.contentType ?? contentType} · ${idea.mood ?? mood} · ${idea.platform ?? platform}`}
             >
               <div className="space-y-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <StatusBadge value={idea.status} />
+                  <StatusBadge value={idea.priority} />
+                  {recentIdeaIds.includes(idea.id) ? (
+                    <span className="rounded-full border border-success/20 bg-success/10 px-2.5 py-1 text-xs font-semibold text-success">
+                      Just generated
+                    </span>
+                  ) : null}
+                </div>
+
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
                     Hook
@@ -302,7 +408,7 @@ export function ContentIdeasPanel() {
                     Concept summary
                   </p>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    {idea.conceptSummary}
+                    {idea.concept}
                   </p>
                 </div>
 
@@ -311,7 +417,7 @@ export function ContentIdeasPanel() {
                     Visual direction
                   </p>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    {idea.visualDirection}
+                    {idea.visualDirection ?? "No visual direction saved yet."}
                   </p>
                 </div>
 
@@ -320,7 +426,7 @@ export function ContentIdeasPanel() {
                     Caption idea
                   </p>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    {idea.captionIdea}
+                    {idea.captionAngle}
                   </p>
                 </div>
 
@@ -328,11 +434,70 @@ export function ContentIdeasPanel() {
                   <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
                     CTA
                   </p>
-                  <p className="mt-2 text-sm font-semibold text-foreground">{idea.cta}</p>
+                  <p className="mt-2 text-sm font-semibold text-foreground">
+                    {idea.cta ?? "No CTA saved yet."}
+                  </p>
+                </div>
+
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <button
+                    className="inline-flex items-center justify-center rounded-full border border-border/80 bg-white/85 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-55"
+                    disabled={activeIdeaId === idea.id}
+                    onClick={() => void handleIdeaAction(idea.id, "regenerate")}
+                    type="button"
+                  >
+                    {activeIdeaId === idea.id && activeIdeaAction === "regenerate"
+                      ? "Regenerating..."
+                      : "Regenerate"}
+                  </button>
+
+                  <button
+                    className="inline-flex items-center justify-center rounded-full border border-border/80 bg-white/85 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-55"
+                    disabled={activeIdeaId === idea.id || idea.status === "Saved"}
+                    onClick={() => void handleIdeaAction(idea.id, "save")}
+                    type="button"
+                  >
+                    {idea.status === "Saved"
+                      ? "Saved"
+                      : activeIdeaId === idea.id && activeIdeaAction === "save"
+                        ? "Saving..."
+                        : "Save"}
+                  </button>
+
+                  <button
+                    className="inline-flex items-center justify-center rounded-full border border-border/80 bg-white/85 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-55"
+                    disabled={
+                      activeIdeaId === idea.id ||
+                      idea.status === "Ready for Review" ||
+                      idea.status === "Archived"
+                    }
+                    onClick={() => void handleIdeaAction(idea.id, "review")}
+                    type="button"
+                  >
+                    {idea.status === "Ready for Review"
+                      ? "In Review Queue"
+                      : activeIdeaId === idea.id && activeIdeaAction === "review"
+                        ? "Sending..."
+                        : "Send to Review"}
+                  </button>
+
+                  <button
+                    className="inline-flex items-center justify-center rounded-full border border-border/80 bg-white/85 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-55"
+                    disabled={activeIdeaId === idea.id || idea.status === "Archived"}
+                    onClick={() => void handleIdeaAction(idea.id, "archive")}
+                    type="button"
+                  >
+                    {idea.status === "Archived"
+                      ? "Archived"
+                      : activeIdeaId === idea.id && activeIdeaAction === "archive"
+                        ? "Archiving..."
+                        : "Archive"}
+                  </button>
                 </div>
               </div>
             </SectionCard>
-          ))}
+            ))}
+          </div>
         </div>
       )}
     </div>

@@ -15,6 +15,9 @@ services:
       DATABASE_URL: postgresql://vb_user:vb_password@db:5432/vb_jewelry_ai?schema=public
       REDIS_URL: redis://redis:6379
       APP_BASE_URL: http://localhost:3000
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
     ports:
       - "${WEB_PORT:-3000}:3000"
     volumes:

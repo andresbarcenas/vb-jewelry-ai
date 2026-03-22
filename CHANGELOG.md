@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - 2026-03-22
+
+### Added
+- Added a server-only OpenAI content generation service (`src/lib/services/content-generation.service.ts`) that composes prompts from Brand Profile, Persona, Product, mood, content type, and platform.
+- Added structured content idea generation with required fields (`title`, `hook`, `conceptSummary`, `visualDirection`, `captionAngle`, `cta`, `priority`) and support for generating 3 to 5 ideas per request.
+- Added new Content Ideas API routes for listing, generating, and updating idea actions (`save`, `send_to_review`, `archive`, `regenerate`).
+- Added database-backed content idea repository logic to save generated ideas, associate persona/product, track timestamps, and support review readiness updates.
+- Added Phase 3 documentation for technical and business audiences (`docs/phase-3.md`, `docs/phase-3-simple.md`).
+
+### Changed
+- Replaced mocked Content Ideas generation flow with real server-side AI generation while keeping the existing page layout and controls.
+- Updated Content Ideas cards to support real workflow actions: `Regenerate`, `Save`, `Send to Review`, and `Archive`, including loading/success/error states.
+- Expanded Prisma `ContentIdea` persistence fields to store generation context (platform, mood, content type), visual direction, CTA, autosave state, and product linkage.
+- Updated `StudioDataProvider` and content services to refresh state from API-backed persistence instead of local mock storage for Content Ideas.
+- Updated Docker and environment configuration to support OpenAI settings (`OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_BASE_URL`).
+
+### Notes
+- If OpenAI is unavailable or not configured, Content Ideas generation gracefully falls back to structured mock output so the workflow remains usable.
+
 ## [1.1.0] - 2026-03-22
 
 ### Added

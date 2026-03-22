@@ -19,6 +19,17 @@ export type ContentIdeaType =
   | "gift idea"
   | "trendy";
 
+export type ContentIdeaPriority = "High" | "Medium" | "Low";
+
+export type ContentIdeaStatus =
+  | "Generated"
+  | "Saved"
+  | "Ready for Review"
+  | "Archived"
+  | "Approved Concept"
+  | "Ready for Storyboard"
+  | "Awaiting Brand Note";
+
 export interface ContentIdeaGeneratorInput {
   persona: AiPersonaProfile;
   product: ProductLibraryItem;
@@ -29,11 +40,19 @@ export interface ContentIdeaGeneratorInput {
 
 export interface GeneratedContentIdeaCard {
   id: string;
+  title: string;
   hook: string;
   conceptSummary: string;
   visualDirection: string;
-  captionIdea: string;
+  captionAngle: string;
   cta: string;
+  priority: ContentIdeaPriority;
+}
+
+export interface ContentIdeaGenerationResult {
+  ideas: ContentIdea[];
+  source: "openai" | "mock_fallback";
+  message: string;
 }
 
 export interface ContentIdea {
@@ -41,14 +60,24 @@ export interface ContentIdea {
   title: string;
   personaId: string;
   personaName: string;
-  status: "Approved Concept" | "Ready for Storyboard" | "Awaiting Brand Note";
+  productId?: string;
+  productName?: string;
+  platform?: ContentPlatform;
+  mood?: ContentMood;
+  contentType?: ContentIdeaType;
+  status: ContentIdeaStatus;
   products: string[];
   theme: string;
   concept: string;
+  visualDirection?: string;
   hook: string;
   captionAngle: string;
-  priority: "High" | "Medium";
+  cta?: string;
+  priority: ContentIdeaPriority;
+  autoSaved?: boolean;
   targetLaunch: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface AnalyticsTrendPoint {

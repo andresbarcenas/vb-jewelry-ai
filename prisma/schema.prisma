@@ -58,20 +58,28 @@ model Product {
 }
 
 model ContentIdea {
-  id          String   @id
-  title       String
-  personaId   String
-  personaName String
-  status      String
-  products    String[]
-  theme       String
-  concept     String   @db.Text
-  hook        String   @db.Text
-  captionAngle String  @db.Text
-  priority    String
-  targetLaunch String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String   @id
+  title           String
+  personaId       String
+  personaName     String
+  productId       String?
+  productName     String?
+  platform        String?
+  mood            String?
+  contentType     String?
+  status          String
+  products        String[]
+  theme           String
+  concept         String   @db.Text
+  visualDirection String?  @db.Text
+  hook            String   @db.Text
+  captionAngle    String   @db.Text
+  cta             String?  @db.Text
+  priority        String
+  autoSaved       Boolean  @default(true)
+  targetLaunch    String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model ReviewItem {

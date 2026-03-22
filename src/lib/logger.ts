@@ -1,5 +1,6 @@
 export type StudioLogType =
   | "content_generated"
+  | "generation_failed"
   | "approval"
   | "rejection"
   | "publishing_attempt"

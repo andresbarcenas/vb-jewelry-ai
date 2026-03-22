@@ -121,6 +121,15 @@ export async function getProducts(): Promise<ProductLibraryItem[]> {
   return normalizeProducts(normalized, defaultProducts);
 }
 
+export async function listProducts(): Promise<ProductLibraryItem[]> {
+  return getProducts();
+}
+
+export async function getProductById(productId: string): Promise<ProductLibraryItem | null> {
+  const products = await getProducts();
+  return products.find((item) => item.id === productId) ?? null;
+}
+
 export async function createProduct(product: ProductLibraryItem): Promise<ProductLibraryItem[]> {
   const current = await getProducts();
   const candidate = normalizeProduct(product);

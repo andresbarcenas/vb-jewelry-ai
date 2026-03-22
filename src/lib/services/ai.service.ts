@@ -1,6 +1,7 @@
 import { appConfig } from "@/config/app.config";
 import type {
   ContentIdeaGeneratorInput,
+  ContentIdeaPriority,
   ContentIdeaType,
   ContentMood,
   ContentPlatform,
@@ -40,6 +41,8 @@ const ctaOptions = [
   "Keep this as inspiration for your next Reel concept.",
   "See the full collection details in the studio.",
 ];
+
+const priorityOrder: ContentIdeaPriority[] = ["High", "Medium", "Medium", "Low", "Low"];
 
 const hookTemplates: Record<ContentIdeaType, string[]> = {
   lifestyle: [
@@ -109,6 +112,14 @@ function toTitleCase(value: string) {
   return value.replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function buildTitle(input: ContentIdeaGeneratorInput, index: number) {
+  const scenario =
+    input.persona.recommendedScenes[index % input.persona.recommendedScenes.length];
+  const condensedScenario = scenario.split(" ").slice(0, 4).join(" ");
+
+  return `${toTitleCase(input.contentType)}: ${input.product.productName} for ${condensedScenario}`;
+}
+
 function buildConceptSummary(input: ContentIdeaGeneratorInput, index: number) {
   const scenario =
     input.persona.recommendedScenes[index % input.persona.recommendedScenes.length];
@@ -134,11 +145,13 @@ export async function generateContentIdeas(
 
   return Array.from({ length: count }, (_, index) => ({
     id: `${input.persona.id}-${input.product.id}-${input.contentType}-${index + 1}`,
+    title: buildTitle(input, index),
     hook: pickFromList(hookTemplates[input.contentType], index),
     conceptSummary: buildConceptSummary(input, index),
     visualDirection: pickFromList(visualDirectionTemplates[input.mood], index),
-    captionIdea: buildCaptionIdea(input, index),
+    captionAngle: buildCaptionIdea(input, index),
     cta: pickFromList(ctaOptions, index),
+    priority: priorityOrder[index % priorityOrder.length],
   }));
 }
 
