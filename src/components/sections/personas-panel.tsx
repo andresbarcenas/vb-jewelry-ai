@@ -1,20 +1,11 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SectionCard } from "@/components/ui/section-card";
 import { StatusBadge } from "@/components/ui/status-badge";
-import {
-  getPersonaProfilesSnapshot,
-  resetPersonaProfilesSnapshot,
-  savePersonaProfilesSnapshot,
-  subscribeToPersonaStore,
-} from "@/lib/persona-store";
+import { useStudioPersonas } from "@/lib/studio-data-provider";
 import type { AiPersonaProfile } from "@/types/studio";
-
-interface PersonasPanelProps {
-  initialPersonas: AiPersonaProfile[];
-}
 
 interface PersonaDraft {
   name: string;
@@ -144,12 +135,9 @@ function PersonaPhotoPlaceholder({
   );
 }
 
-export function PersonasPanel({ initialPersonas }: PersonasPanelProps) {
-  const personas = useSyncExternalStore(
-    subscribeToPersonaStore,
-    () => getPersonaProfilesSnapshot(initialPersonas),
-    () => initialPersonas,
-  );
+export function PersonasPanel() {
+  const { createPersona, deletePersona, personas, resetPersonas, updatePersona } =
+    useStudioPersonas();
   const [draft, setDraft] = useState<PersonaDraft>(createEmptyDraft());
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -174,7 +162,7 @@ export function PersonasPanel({ initialPersonas }: PersonasPanelProps) {
     setEditingId(null);
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!formIsValid) {
@@ -182,13 +170,7 @@ export function PersonasPanel({ initialPersonas }: PersonasPanelProps) {
     }
 
     if (editingId) {
-      savePersonaProfilesSnapshot(
-        personas.map((persona) =>
-          persona.id === editingId
-            ? buildPersonaFromDraft(draft, editingId)
-            : persona,
-        ),
-      );
+      await updatePersona(buildPersonaFromDraft(draft, editingId));
       resetForm();
       return;
     }
@@ -197,10 +179,7 @@ export function PersonasPanel({ initialPersonas }: PersonasPanelProps) {
       return;
     }
 
-    savePersonaProfilesSnapshot([
-      ...personas,
-      buildPersonaFromDraft(draft, createPersonaId()),
-    ]);
+    await createPersona(buildPersonaFromDraft(draft, createPersonaId()));
     resetForm();
   }
 
@@ -209,8 +188,8 @@ export function PersonasPanel({ initialPersonas }: PersonasPanelProps) {
     setDraft(buildDraftFromPersona(persona));
   }
 
-  function handleRemove(personaId: string) {
-    savePersonaProfilesSnapshot(personas.filter((persona) => persona.id !== personaId));
+  async function handleRemove(personaId: string) {
+    await deletePersona(personaId);
 
     if (editingId === personaId) {
       resetForm();
@@ -231,7 +210,12 @@ export function PersonasPanel({ initialPersonas }: PersonasPanelProps) {
           title={editingId ? "Edit persona" : "Create persona"}
           description="Use this form to shape up to five reusable AI personas for styling, audience targeting, and creative scenarios."
         >
-          <form className="space-y-5" onSubmit={handleSubmit}>
+          <form
+            className="space-y-5"
+            onSubmit={(event) => {
+              void handleSubmit(event);
+            }}
+          >
             <div className="grid gap-5 md:grid-cols-2">
               <FieldShell
                 label="Name"
@@ -357,7 +341,7 @@ export function PersonasPanel({ initialPersonas }: PersonasPanelProps) {
             <button
               className="inline-flex items-center justify-center rounded-full border border-border/80 bg-white/85 px-4 py-2 text-sm font-semibold text-foreground transition hover:border-accent/40 hover:text-accent"
               onClick={() => {
-                resetPersonaProfilesSnapshot(initialPersonas);
+                void resetPersonas();
                 resetForm();
               }}
               type="button"
@@ -426,7 +410,9 @@ export function PersonasPanel({ initialPersonas }: PersonasPanelProps) {
                   </button>
                   <button
                     className="inline-flex items-center justify-center rounded-full border border-danger/20 bg-danger/10 px-4 py-2 text-sm font-semibold text-danger transition hover:bg-danger/15"
-                    onClick={() => handleRemove(persona.id)}
+                    onClick={() => {
+                      void handleRemove(persona.id);
+                    }}
                     type="button"
                   >
                     Remove

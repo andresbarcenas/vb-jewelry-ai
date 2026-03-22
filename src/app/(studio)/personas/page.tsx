@@ -1,6 +1,5 @@
 import { PersonasPanel } from "@/components/sections/personas-panel";
 import { PageHeader } from "@/components/ui/page-header";
-import { personaProfiles } from "@/data/mock-studio";
 
 export default function PersonasPage() {
   return (
@@ -9,7 +8,7 @@ export default function PersonasPage() {
         title="Personas"
         description="Create and manage up to five fictional model profiles so the team can present jewelry through consistent, reusable style perspectives."
       />
-      <PersonasPanel initialPersonas={personaProfiles} />
+      <PersonasPanel />
     </>
   );
 }

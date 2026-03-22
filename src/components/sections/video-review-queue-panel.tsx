@@ -5,13 +5,10 @@ import { DataTable } from "@/components/ui/data-table";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { formatShortDate } from "@/lib/format";
-import type { VideoReviewItem } from "@/types/studio";
+import { useStudioContent } from "@/lib/studio-data-provider";
 
-interface VideoReviewQueuePanelProps {
-  items: VideoReviewItem[];
-}
-
-export function VideoReviewQueuePanel({ items }: VideoReviewQueuePanelProps) {
+export function VideoReviewQueuePanel() {
+  const { videoReviewQueue: items } = useStudioContent();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [reviewer, setReviewer] = useState("all");

@@ -1,3 +1,4 @@
+import { appConfig } from "@/config/app.config";
 import type {
   ContentIdeaGeneratorInput,
   ContentIdeaType,
@@ -5,6 +6,12 @@ import type {
   ContentPlatform,
   GeneratedContentIdeaCard,
 } from "@/types/studio";
+
+export interface AiProviderStatus {
+  label: string;
+  mode: "mock" | "live";
+  status: "connected" | "not_connected";
+}
 
 export const contentPlatformOptions: ContentPlatform[] = ["Instagram Reels"];
 
@@ -102,10 +109,7 @@ function toTitleCase(value: string) {
   return value.replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-function buildConceptSummary(
-  input: ContentIdeaGeneratorInput,
-  index: number,
-) {
+function buildConceptSummary(input: ContentIdeaGeneratorInput, index: number) {
   const scenario =
     input.persona.scenarioExamples[index % input.persona.scenarioExamples.length];
   const styleTag = input.product.styleTags[index % input.product.styleTags.length];
@@ -113,26 +117,22 @@ function buildConceptSummary(
   return `${input.persona.name} presents ${input.product.productName} as a ${toTitleCase(input.contentType)} idea for ${input.platform}. The Reel leans into a ${input.mood.toLowerCase()} mood, highlights the ${styleTag.toLowerCase()} angle, and uses a scenario like "${scenario}" to make the product feel easy to imagine in real life.`;
 }
 
-function buildCaptionIdea(
-  input: ContentIdeaGeneratorInput,
-  index: number,
-) {
+function buildCaptionIdea(input: ContentIdeaGeneratorInput, index: number) {
   const scenario =
     input.persona.scenarioExamples[index % input.persona.scenarioExamples.length];
 
   return `${input.persona.name} gives ${input.product.productName} a ${input.mood.toLowerCase()} ${input.contentType} angle for ${input.product.category.toLowerCase()} content. Tie the caption to ${scenario.toLowerCase()} and mention the ${input.product.material.toLowerCase()} finish with a tone that feels ${input.persona.styleVibe.toLowerCase()}.`;
 }
 
-// This wrapper is intentionally async so the UI can later swap the mock logic
-// for a real AI API call without changing the calling pattern.
 export async function generateContentIdeas(
   input: ContentIdeaGeneratorInput,
+  count = 5,
 ): Promise<GeneratedContentIdeaCard[]> {
   await new Promise((resolve) => {
     setTimeout(resolve, 350);
   });
 
-  return Array.from({ length: 5 }, (_, index) => ({
+  return Array.from({ length: count }, (_, index) => ({
     id: `${input.persona.id}-${input.product.id}-${input.contentType}-${index + 1}`,
     hook: pickFromList(hookTemplates[input.contentType], index),
     conceptSummary: buildConceptSummary(input, index),
@@ -140,4 +140,14 @@ export async function generateContentIdeas(
     captionIdea: buildCaptionIdea(input, index),
     cta: pickFromList(ctaOptions, index),
   }));
+}
+
+export async function getAiProviderStatus(): Promise<AiProviderStatus> {
+  const provider = appConfig.providers.ai;
+
+  return {
+    label: provider.name,
+    mode: provider.mode,
+    status: provider.status,
+  };
 }

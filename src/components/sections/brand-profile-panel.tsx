@@ -1,18 +1,9 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import { SectionCard } from "@/components/ui/section-card";
-import {
-  getBrandProfileSnapshot,
-  resetBrandProfileSnapshot,
-  saveBrandProfileSnapshot,
-  subscribeToBrandProfileStore,
-} from "@/lib/brand-profile-store";
+import { useStudioBrand } from "@/lib/studio-data-provider";
 import type { BrandProfile } from "@/types/studio";
-
-interface BrandProfilePanelProps {
-  initialProfile: BrandProfile;
-}
 
 interface FieldShellProps {
   label: string;
@@ -84,12 +75,13 @@ function buildBrandBrief(profile: BrandProfile) {
   return `${brandName} appears on Instagram as ${handle}. It should sound ${profile.brandVoice} The target customer is ${profile.targetCustomer} The overall look should feel ${styleKeywords}. Feature colors like ${colors}, prioritize categories such as ${categories}, and avoid wording or angles like ${avoidTerms}.`;
 }
 
-export function BrandProfilePanel({ initialProfile }: BrandProfilePanelProps) {
-  const form = useSyncExternalStore(
-    subscribeToBrandProfileStore,
-    () => getBrandProfileSnapshot(initialProfile),
-    () => initialProfile,
-  );
+export function BrandProfilePanel() {
+  const { brandProfile, resetBrandProfile, saveBrandProfile } = useStudioBrand();
+  const [form, setForm] = useState<BrandProfile>(brandProfile);
+
+  useEffect(() => {
+    setForm(brandProfile);
+  }, [brandProfile]);
 
   const brandBrief = buildBrandBrief(form);
 
@@ -98,9 +90,13 @@ export function BrandProfilePanel({ initialProfile }: BrandProfilePanelProps) {
     "brandName" | "brandVoice" | "targetCustomer" | "instagramHandle"
   >,
   value: string) {
-    saveBrandProfileSnapshot({
-      ...form,
-      [field]: value,
+    setForm((current) => {
+      const next = {
+        ...current,
+        [field]: value,
+      };
+      void saveBrandProfile(next);
+      return next;
     });
   }
 
@@ -108,19 +104,27 @@ export function BrandProfilePanel({ initialProfile }: BrandProfilePanelProps) {
     field: keyof Pick<
       BrandProfile,
       "styleKeywords" | "preferredColors" | "productCategories"
-    >,
-    value: string,
+  >,
+  value: string,
   ) {
-    saveBrandProfileSnapshot({
-      ...form,
-      [field]: splitCommaList(value),
+    setForm((current) => {
+      const next = {
+        ...current,
+        [field]: splitCommaList(value),
+      };
+      void saveBrandProfile(next);
+      return next;
     });
   }
 
   function updateDoNotUseList(value: string) {
-    saveBrandProfileSnapshot({
-      ...form,
-      doNotUseList: splitLines(value),
+    setForm((current) => {
+      const next = {
+        ...current,
+        doNotUseList: splitLines(value),
+      };
+      void saveBrandProfile(next);
+      return next;
     });
   }
 
@@ -137,7 +141,9 @@ export function BrandProfilePanel({ initialProfile }: BrandProfilePanelProps) {
         </div>
         <button
           className="inline-flex items-center justify-center rounded-full border border-border/80 bg-white/85 px-4 py-2 text-sm font-semibold text-foreground transition hover:border-accent/40 hover:text-accent"
-          onClick={() => resetBrandProfileSnapshot(initialProfile)}
+          onClick={() => {
+            void resetBrandProfile();
+          }}
           type="button"
         >
           Reset to sample data

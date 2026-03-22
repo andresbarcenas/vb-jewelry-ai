@@ -1,29 +1,17 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { SectionCard } from "@/components/ui/section-card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { formatLongDate } from "@/lib/format";
 import {
-  getPublishingQueueSnapshot,
-  resetPublishingQueueSnapshot,
-  savePublishingQueueSnapshot,
-  subscribeToPublishingQueueStore,
-} from "@/lib/publishing-queue-store";
-import {
   buildPublishingIntegrationPayload,
-  markPublishingItemReady,
   normalizeHashtagList,
-  publishingPlatformOptions,
-  publishingStatusOptions,
-} from "@/lib/publishing-queue-workflow";
+} from "@/lib/services/publishing.service";
+import { useStudioPublishing } from "@/lib/studio-data-provider";
 import type { PublishingQueueEntry } from "@/types/studio";
-
-interface PublishingQueuePanelProps {
-  initialItems: PublishingQueueEntry[];
-}
 
 interface PublishingDraft {
   scheduledPublishDate: string;
@@ -89,22 +77,6 @@ function formatScheduledDate(value: string) {
   return formatLongDate(`${value}T12:00:00`);
 }
 
-function buildDraftState(items: PublishingQueueEntry[]): PublishingDraftState {
-  const firstItem = items[0];
-
-  if (!firstItem) {
-    return {
-      itemId: null,
-      draft: createEmptyDraft(),
-    };
-  }
-
-  return {
-    itemId: firstItem.id,
-    draft: buildDraftFromItem(firstItem),
-  };
-}
-
 function FieldShell({ label, helperText, children }: FieldShellProps) {
   return (
     <label className="block">
@@ -117,19 +89,25 @@ function FieldShell({ label, helperText, children }: FieldShellProps) {
   );
 }
 
-export function PublishingQueuePanel({ initialItems }: PublishingQueuePanelProps) {
-  const items = useSyncExternalStore(
-    subscribeToPublishingQueueStore,
-    () => getPublishingQueueSnapshot(initialItems),
-    () => initialItems,
-  );
-  const [selectedId, setSelectedId] = useState<string | null>(initialItems[0]?.id ?? null);
-  const [draftState, setDraftState] = useState<PublishingDraftState>(
-    buildDraftState(initialItems),
-  );
+export function PublishingQueuePanel() {
+  const {
+    markReadyToPublish,
+    publishingOptions,
+    publishingQueue: items,
+    resetPublishingQueue,
+    savePublishingItem,
+  } = useStudioPublishing();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [draftState, setDraftState] = useState<PublishingDraftState>({
+    itemId: null,
+    draft: createEmptyDraft(),
+  });
   const [search, setSearch] = useState("");
   const [platformFilter, setPlatformFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+
+  const publishingPlatformOptions = publishingOptions.platforms;
+  const publishingStatusOptions = publishingOptions.statuses;
 
   const activeSelectedId =
     selectedId && items.some((item) => item.id === selectedId)
@@ -200,10 +178,8 @@ export function PublishingQueuePanel({ initialItems }: PublishingQueuePanelProps
     });
   }
 
-  function saveSelectedItem(nextItem: PublishingQueueEntry) {
-    savePublishingQueueSnapshot(
-      items.map((item) => (item.id === nextItem.id ? nextItem : item)),
-    );
+  async function saveSelectedItem(nextItem: PublishingQueueEntry) {
+    await savePublishingItem(nextItem);
     setSelectedId(nextItem.id);
     setDraftState({
       itemId: nextItem.id,
@@ -219,29 +195,36 @@ export function PublishingQueuePanel({ initialItems }: PublishingQueuePanelProps
     });
   }
 
-  function handleResetQueue() {
-    resetPublishingQueueSnapshot(initialItems);
-    setSelectedId(initialItems[0]?.id ?? null);
-    setDraftState(buildDraftState(initialItems));
+  async function handleResetQueue() {
+    await resetPublishingQueue();
+    setSelectedId(null);
+    setDraftState({
+      itemId: null,
+      draft: createEmptyDraft(),
+    });
   }
 
-  function handleSaveChanges(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSaveChanges(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!selectedItem || !draftIsValid) {
       return;
     }
 
-    saveSelectedItem(applyDraftToItem(selectedItem, draft));
+    await saveSelectedItem(applyDraftToItem(selectedItem, draft));
   }
 
-  function handleMarkReadyToPublish() {
+  async function handleMarkReadyToPublish() {
     if (!selectedItem || !draftIsValid) {
       return;
     }
 
-    const nextItem = markPublishingItemReady(applyDraftToItem(selectedItem, draft));
-    saveSelectedItem(nextItem);
+    const nextItem = applyDraftToItem(selectedItem, draft);
+    await saveSelectedItem(nextItem);
+
+    if (nextItem.postingStatus === "Business Approved") {
+      await markReadyToPublish(nextItem.id);
+    }
   }
 
   const integrationPayload = selectedItem
@@ -264,7 +247,9 @@ export function PublishingQueuePanel({ initialItems }: PublishingQueuePanelProps
         </div>
         <button
           className="inline-flex items-center justify-center rounded-full border border-border/80 bg-white/90 px-4 py-2 text-sm font-semibold text-foreground transition hover:border-accent/40 hover:text-accent"
-          onClick={handleResetQueue}
+          onClick={() => {
+            void handleResetQueue();
+          }}
           type="button"
         >
           Reset sample queue
@@ -313,7 +298,12 @@ export function PublishingQueuePanel({ initialItems }: PublishingQueuePanelProps
           description="Select an approved content item, then fill in the final posting information in plain business language."
         >
           {selectedItem ? (
-            <form className="space-y-5" onSubmit={handleSaveChanges}>
+            <form
+              className="space-y-5"
+              onSubmit={(event) => {
+                void handleSaveChanges(event);
+              }}
+            >
               <div className="rounded-[24px] border border-border/80 bg-accent-soft/30 px-4 py-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
                   Selected content
@@ -411,7 +401,9 @@ export function PublishingQueuePanel({ initialItems }: PublishingQueuePanelProps
                 <button
                   className="inline-flex items-center justify-center rounded-full border border-border/80 bg-white px-5 py-3 text-sm font-semibold text-foreground transition hover:border-accent/40 hover:text-accent disabled:cursor-not-allowed disabled:opacity-60"
                   disabled={!draftIsValid || draft.postingStatus !== "Business Approved"}
-                  onClick={handleMarkReadyToPublish}
+                  onClick={() => {
+                    void handleMarkReadyToPublish();
+                  }}
                   type="button"
                 >
                   {readyButtonLabel}

@@ -15,6 +15,11 @@ All notable changes to this project will be documented in this file.
 - Rebuilt the Publishing Queue section as a local approval workflow with posting fields, manual Ready to Publish handling, business-approval warnings, and future integration helpers.
 - Added a simplified Analytics dashboard with mock performance metrics, lightweight charts, and plain-English insights for business owners.
 - Added an in-app "How This Works" guide that explains the studio workflow in simple, non-technical language.
+- Added an integration-ready service layer under `src/lib/services` for brand, persona, product, content, publishing, analytics, and AI domains.
+- Added a mock job pipeline under `src/lib/jobs` with shared `JobResult<T>` output for content generation, video generation, review decisions, and publish attempts.
+- Added a structured logger (`src/lib/logger.ts`) for content generation, approvals/rejections, publish attempts, and job lifecycle events.
+- Added typed provider placeholders in `src/config/app.config.ts` and a dashboard System Status panel showing AI, video, and publishing connectivity states.
+- Added architecture docs (`docs/architecture.md` and `docs/architecture-simple.md`) for both technical and non-technical audiences.
 
 ### Changed
 - Updated the dashboard brand snapshot card to reflect the new Brand Profile structure.
@@ -23,6 +28,11 @@ All notable changes to this project will be documented in this file.
 - Updated the Product Library and Content Ideas pages to use the new local-first data models and reusable workflow utilities.
 - Added publishing-specific typed models so future scheduling or posting integrations can plug into the current admin UI without a rewrite.
 - Updated analytics seed data, trend visuals, and navigation so the new reporting and help experiences fit the shared studio shell cleanly.
+- Refactored all studio routes to use one shared `StudioDataProvider` and provider hooks instead of direct `mock-studio` imports in UI pages.
+- Rewired Brand Profile, Personas, Product Library, Content Ideas, Video Review Queue, Publishing Queue, Dashboard, and Analytics panels to read and mutate provider-backed service state.
+- Split shared domain models into `src/types/brand.ts`, `persona.ts`, `product.ts`, `content.ts`, `video.ts`, and `publishing.ts` while keeping `src/types/studio.ts` as a compatibility barrel.
+- Converted `src/data/mock-studio.ts` into a seed/default data source for services and retired legacy standalone local-store modules from UI usage.
+- Verified `pnpm lint`, `pnpm typecheck`, and `pnpm build` pass, and smoke-tested all studio routes including `/how-this-works`.
 
 ## [1.0.0] - 2026-03-22
 

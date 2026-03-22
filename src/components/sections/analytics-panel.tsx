@@ -1,18 +1,17 @@
+"use client";
+
 import { SectionCard } from "@/components/ui/section-card";
 import { StatCard } from "@/components/ui/stat-card";
 import { TrendBar } from "@/components/ui/trend-bar";
 import { formatPercent } from "@/lib/format";
-import type { AnalyticsSnapshot } from "@/types/studio";
-
-interface AnalyticsPanelProps {
-  snapshot: AnalyticsSnapshot;
-}
+import { useStudioAnalytics } from "@/lib/studio-data-provider";
 
 function getMaxValue(values: number[]) {
   return Math.max(...values, 1);
 }
 
-export function AnalyticsPanel({ snapshot }: AnalyticsPanelProps) {
+export function AnalyticsPanel() {
+  const { analyticsSnapshot: snapshot } = useStudioAnalytics();
   const highestWeeklyVolume = getMaxValue(
     snapshot.weeklyPostVolume.map((item) => item.value),
   );

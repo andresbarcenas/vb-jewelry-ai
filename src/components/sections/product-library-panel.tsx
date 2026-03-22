@@ -1,21 +1,12 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { SectionCard } from "@/components/ui/section-card";
-import {
-  getProductLibrarySnapshot,
-  resetProductLibrarySnapshot,
-  saveProductLibrarySnapshot,
-  subscribeToProductLibraryStore,
-} from "@/lib/product-library-store";
+import { useStudioProducts } from "@/lib/studio-data-provider";
 import type { ProductLibraryItem } from "@/types/studio";
-
-interface ProductLibraryPanelProps {
-  initialProducts: ProductLibraryItem[];
-}
 
 interface ProductDraft {
   productName: string;
@@ -149,12 +140,9 @@ function ProductImagePlaceholder({
   );
 }
 
-export function ProductLibraryPanel({ initialProducts }: ProductLibraryPanelProps) {
-  const products = useSyncExternalStore(
-    subscribeToProductLibraryStore,
-    () => getProductLibrarySnapshot(initialProducts),
-    () => initialProducts,
-  );
+export function ProductLibraryPanel() {
+  const { createProduct, deleteProduct, products, resetProducts, updateProduct } =
+    useStudioProducts();
   const [draft, setDraft] = useState<ProductDraft>(createEmptyDraft());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -232,7 +220,7 @@ export function ProductLibraryPanel({ initialProducts }: ProductLibraryPanelProp
     }));
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!formIsValid) {
@@ -240,21 +228,12 @@ export function ProductLibraryPanel({ initialProducts }: ProductLibraryPanelProp
     }
 
     if (editingId) {
-      saveProductLibrarySnapshot(
-        products.map((product) =>
-          product.id === editingId
-            ? buildProductFromDraft(draft, editingId)
-            : product,
-        ),
-      );
+      await updateProduct(buildProductFromDraft(draft, editingId));
       resetForm();
       return;
     }
 
-    saveProductLibrarySnapshot([
-      buildProductFromDraft(draft, createProductId()),
-      ...products,
-    ]);
+    await createProduct(buildProductFromDraft(draft, createProductId()));
     resetForm();
   }
 
@@ -263,8 +242,8 @@ export function ProductLibraryPanel({ initialProducts }: ProductLibraryPanelProp
     setDraft(buildDraftFromProduct(product));
   }
 
-  function handleRemove(productId: string) {
-    saveProductLibrarySnapshot(products.filter((product) => product.id !== productId));
+  async function handleRemove(productId: string) {
+    await deleteProduct(productId);
 
     if (editingId === productId) {
       resetForm();
@@ -285,7 +264,12 @@ export function ProductLibraryPanel({ initialProducts }: ProductLibraryPanelProp
           title={editingId ? "Edit product" : "Add product"}
           description="This form is designed for non-technical users, so each field explains exactly what information belongs there."
         >
-          <form className="space-y-5" onSubmit={handleSubmit}>
+          <form
+            className="space-y-5"
+            onSubmit={(event) => {
+              void handleSubmit(event);
+            }}
+          >
             <div className="grid gap-5 md:grid-cols-2">
               <FieldShell
                 label="Product image"
@@ -442,7 +426,7 @@ export function ProductLibraryPanel({ initialProducts }: ProductLibraryPanelProp
             <button
               className="inline-flex items-center justify-center rounded-full border border-border/80 bg-white/85 px-4 py-2 text-sm font-semibold text-foreground transition hover:border-accent/40 hover:text-accent"
               onClick={() => {
-                resetProductLibrarySnapshot(initialProducts);
+                void resetProducts();
                 resetForm();
               }}
               type="button"
@@ -545,7 +529,9 @@ export function ProductLibraryPanel({ initialProducts }: ProductLibraryPanelProp
                   </button>
                   <button
                     className="inline-flex items-center justify-center rounded-full border border-danger/20 bg-danger/10 px-4 py-2 text-sm font-semibold text-danger transition hover:bg-danger/15"
-                    onClick={() => handleRemove(product.id)}
+                    onClick={() => {
+                      void handleRemove(product.id);
+                    }}
                     type="button"
                   >
                     Remove

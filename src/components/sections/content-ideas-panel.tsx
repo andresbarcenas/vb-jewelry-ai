@@ -1,35 +1,19 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SectionCard } from "@/components/ui/section-card";
 import {
-  contentMoodOptions,
-  contentPlatformOptions,
-  contentTypeOptions,
-  generateContentIdeas,
-} from "@/lib/content-ideas-generator";
-import {
-  getPersonaProfilesSnapshot,
-  subscribeToPersonaStore,
-} from "@/lib/persona-store";
-import {
-  getProductLibrarySnapshot,
-  subscribeToProductLibraryStore,
-} from "@/lib/product-library-store";
+  useStudioContent,
+  useStudioPersonas,
+  useStudioProducts,
+} from "@/lib/studio-data-provider";
 import type {
-  AiPersonaProfile,
   ContentIdeaType,
   ContentMood,
   ContentPlatform,
   GeneratedContentIdeaCard,
-  ProductLibraryItem,
 } from "@/types/studio";
-
-interface ContentIdeasPanelProps {
-  initialPersonas: AiPersonaProfile[];
-  initialProducts: ProductLibraryItem[];
-}
 
 interface FieldShellProps {
   label: string;
@@ -52,32 +36,55 @@ function FieldShell({ label, helperText, children }: FieldShellProps) {
   );
 }
 
-export function ContentIdeasPanel({
-  initialPersonas,
-  initialProducts,
-}: ContentIdeasPanelProps) {
-  const personas = useSyncExternalStore(
-    subscribeToPersonaStore,
-    () => getPersonaProfilesSnapshot(initialPersonas),
-    () => initialPersonas,
-  );
-  const products = useSyncExternalStore(
-    subscribeToProductLibraryStore,
-    () => getProductLibrarySnapshot(initialProducts),
-    () => initialProducts,
-  );
-
-  const defaultPersonaId =
-    personas.find((persona) => persona.status === "Active")?.id ?? personas[0]?.id ?? "";
-  const defaultProductId = products[0]?.id ?? "";
-
-  const [requestedPersonaId, setRequestedPersonaId] = useState(defaultPersonaId);
-  const [requestedProductId, setRequestedProductId] = useState(defaultProductId);
+export function ContentIdeasPanel() {
+  const { personas } = useStudioPersonas();
+  const { products } = useStudioProducts();
+  const { generateIdeas, generationOptions } = useStudioContent();
+  const [requestedPersonaId, setRequestedPersonaId] = useState("");
+  const [requestedProductId, setRequestedProductId] = useState("");
   const [platform, setPlatform] = useState<ContentPlatform>("Instagram Reels");
   const [mood, setMood] = useState<ContentMood>("Elevated");
   const [contentType, setContentType] = useState<ContentIdeaType>("lifestyle");
   const [generatedIdeas, setGeneratedIdeas] = useState<GeneratedContentIdeaCard[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+
+  const platformOptions = generationOptions.platforms;
+  const moodOptions = generationOptions.moods;
+  const typeOptions = generationOptions.contentTypes;
+
+  const defaultPersonaId =
+    personas.find((persona) => persona.status === "Active")?.id ?? personas[0]?.id ?? "";
+  const defaultProductId = products[0]?.id ?? "";
+
+  useEffect(() => {
+    if (!requestedPersonaId && defaultPersonaId) {
+      setRequestedPersonaId(defaultPersonaId);
+    }
+  }, [defaultPersonaId, requestedPersonaId]);
+
+  useEffect(() => {
+    if (!requestedProductId && defaultProductId) {
+      setRequestedProductId(defaultProductId);
+    }
+  }, [defaultProductId, requestedProductId]);
+
+  useEffect(() => {
+    if (!platformOptions.includes(platform) && platformOptions[0]) {
+      setPlatform(platformOptions[0]);
+    }
+  }, [platform, platformOptions]);
+
+  useEffect(() => {
+    if (!moodOptions.includes(mood) && moodOptions[0]) {
+      setMood(moodOptions[0]);
+    }
+  }, [mood, moodOptions]);
+
+  useEffect(() => {
+    if (!typeOptions.includes(contentType) && typeOptions[0]) {
+      setContentType(typeOptions[0]);
+    }
+  }, [contentType, typeOptions]);
 
   const selectedPersonaId = personas.some((persona) => persona.id === requestedPersonaId)
     ? requestedPersonaId
@@ -99,7 +106,7 @@ export function ContentIdeasPanel({
     setIsGenerating(true);
 
     try {
-      const ideas = await generateContentIdeas({
+      const ideas = await generateIdeas({
         persona: selectedPersona,
         product: selectedProduct,
         platform,
@@ -175,7 +182,7 @@ export function ContentIdeasPanel({
                   setPlatform(event.target.value as ContentPlatform)
                 }
               >
-                {contentPlatformOptions.map((option) => (
+                {platformOptions.map((option) => (
                   <option key={option} value={option}>
                     {option}
                   </option>
@@ -192,7 +199,7 @@ export function ContentIdeasPanel({
                 value={mood}
                 onChange={(event) => setMood(event.target.value as ContentMood)}
               >
-                {contentMoodOptions.map((option) => (
+                {moodOptions.map((option) => (
                   <option key={option} value={option}>
                     {option}
                   </option>
@@ -211,7 +218,7 @@ export function ContentIdeasPanel({
                   setContentType(event.target.value as ContentIdeaType)
                 }
               >
-                {contentTypeOptions.map((option) => (
+                {typeOptions.map((option) => (
                   <option key={option} value={option}>
                     {option}
                   </option>
