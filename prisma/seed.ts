@@ -13,6 +13,7 @@ const prisma = new PrismaClient();
 async function seed() {
   await prisma.$transaction([
     prisma.brand.deleteMany(),
+    prisma.personaAsset.deleteMany(),
     prisma.persona.deleteMany(),
     prisma.product.deleteMany(),
     prisma.videoAsset.deleteMany(),

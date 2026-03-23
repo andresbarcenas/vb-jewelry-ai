@@ -32,3 +32,4 @@ export * from "@/types/product";
 export * from "@/types/content";
 export * from "@/types/video";
 export * from "@/types/publishing";
+export * from "@/types/ai-job";

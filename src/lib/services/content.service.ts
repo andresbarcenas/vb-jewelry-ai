@@ -15,6 +15,7 @@ import type {
   ContentIdea,
   ContentIdeaGenerationResult,
   ContentIdeaType,
+  EnqueueJobResponse,
   ContentIdeaGeneratorInput,
   ContentMood,
   ContentPlatform,
@@ -77,8 +78,8 @@ export async function listContentIdeas(): Promise<ContentIdea[]> {
 
 export async function generateIdeas(
   input: ContentIdeaGeneratorInput,
-): Promise<ContentIdeaGenerationResult> {
-  const fromApi = await requestJson<ContentIdeaGenerationResult>(
+): Promise<EnqueueJobResponse | null> {
+  const fromApi = await requestJson<EnqueueJobResponse>(
     "/api/content-ideas/generate",
     {
       method: "POST",
@@ -97,11 +98,7 @@ export async function generateIdeas(
     return fromApi;
   }
 
-  return {
-    ideas: [],
-    source: "mock_fallback",
-    message: "Generation did not complete. Please try again.",
-  };
+  return null;
 }
 
 export async function saveContentIdea(ideaId: string): Promise<IdeaActionResponse | null> {
@@ -141,8 +138,8 @@ export async function archiveContentIdea(ideaId: string): Promise<IdeaActionResp
 
 export async function regenerateContentIdea(
   ideaId: string,
-): Promise<IdeaActionResponse | null> {
-  return requestJson<IdeaActionResponse>(`/api/content-ideas/${ideaId}`, {
+): Promise<EnqueueJobResponse | null> {
+  return requestJson<EnqueueJobResponse>(`/api/content-ideas/${ideaId}`, {
     method: "PATCH",
     body: JSON.stringify({
       action: "regenerate",

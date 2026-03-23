@@ -1,7 +1,11 @@
 import { personaProfiles as defaultPersonas } from "@/data/mock-studio";
 import type {
+  PersonaAsset,
+  PersonaAssetStatus,
   AiPersonaProfile,
+  EnqueueJobResponse,
   PersonaRecommendedFor,
+  PersonaReferenceShotType,
   PersonaStatus,
   PersonaUseCaseTag,
 } from "@/types/studio";
@@ -12,6 +16,70 @@ const PERSONA_USE_CASE_TAGS: PersonaUseCaseTag[] = [
   "handmade story",
   "modern minimal",
 ];
+
+function normalizeReferenceShotType(value: unknown): PersonaReferenceShotType {
+  if (
+    value === "hero_portrait" ||
+    value === "three_quarter_body" ||
+    value === "side_profile" ||
+    value === "close_up_jewelry"
+  ) {
+    return value;
+  }
+
+  return "hero_portrait";
+}
+
+function normalizeAssetStatus(value: unknown): PersonaAssetStatus {
+  if (value === "approved") {
+    return value;
+  }
+
+  return "generated";
+}
+
+function normalizeReferenceAssets(value: unknown): PersonaAsset[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object") {
+        return null;
+      }
+
+      const candidate = item as Partial<PersonaAsset>;
+      if (
+        typeof candidate.id !== "string" ||
+        typeof candidate.personaId !== "string" ||
+        typeof candidate.imageUrl !== "string" ||
+        typeof candidate.promptUsed !== "string" ||
+        typeof candidate.provider !== "string"
+      ) {
+        return null;
+      }
+
+      return {
+        id: candidate.id,
+        personaId: candidate.personaId,
+        shotType: normalizeReferenceShotType(candidate.shotType),
+        imageUrl: candidate.imageUrl,
+        promptUsed: candidate.promptUsed,
+        provider: candidate.provider,
+        status: normalizeAssetStatus(candidate.status),
+        createdAt:
+          typeof candidate.createdAt === "string"
+            ? candidate.createdAt
+            : new Date().toISOString(),
+        updatedAt:
+          typeof candidate.updatedAt === "string"
+            ? candidate.updatedAt
+            : new Date().toISOString(),
+      } satisfies PersonaAsset;
+    })
+    .filter((item): item is PersonaAsset => item !== null);
+}
 
 function cleanString(value: unknown, fallback: string) {
   return typeof value === "string" ? value.trim() : fallback;
@@ -139,6 +207,7 @@ function normalizePersona(raw: unknown, fallback?: AiPersonaProfile): AiPersonaP
     promptStarter: cleanString(candidate.promptStarter, fallback?.promptStarter ?? ""),
     recommendedFor,
     status: normalizeStatus(candidate.status, fallback?.status ?? "active"),
+    referenceAssets: normalizeReferenceAssets(candidate.referenceAssets),
   };
 
   if (
@@ -284,4 +353,36 @@ export async function resetPersonas(): Promise<AiPersonaProfile[]> {
   }
 
   return defaultPersonas;
+}
+
+export async function generatePersonaReferencePack(
+  personaId: string,
+): Promise<EnqueueJobResponse | null> {
+  const generated = await requestJson<EnqueueJobResponse>(`/api/personas/${personaId}/reference-pack`, {
+    method: "POST",
+  });
+
+  return generated;
+}
+
+export async function setPersonaReferenceAssetApproval(
+  personaId: string,
+  assetId: string,
+  approved: boolean,
+): Promise<AiPersonaProfile[]> {
+  const updated = await requestJson<AiPersonaProfile>(
+    `/api/personas/${personaId}/assets/${assetId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({
+        approved,
+      }),
+    },
+  );
+
+  if (updated) {
+    return listPersonas();
+  }
+
+  return listPersonas();
 }

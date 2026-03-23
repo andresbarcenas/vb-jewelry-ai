@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "worker:ai": "tsx src/scripts/run-ai-worker.ts",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",

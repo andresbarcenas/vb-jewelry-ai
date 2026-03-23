@@ -6,6 +6,26 @@ export type PersonaUseCaseTag =
   | "handmade story"
   | "modern minimal";
 
+export type PersonaReferenceShotType =
+  | "hero_portrait"
+  | "three_quarter_body"
+  | "side_profile"
+  | "close_up_jewelry";
+
+export type PersonaAssetStatus = "generated" | "approved";
+
+export interface PersonaAsset {
+  id: string;
+  personaId: string;
+  shotType: PersonaReferenceShotType;
+  imageUrl: string;
+  promptUsed: string;
+  provider: string;
+  status: PersonaAssetStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface PersonaRecommendedFor {
   bestContentTypes: string[];
   bestMoods: string[];
@@ -28,6 +48,7 @@ export interface AiPersonaProfile {
   promptStarter: string;
   recommendedFor: PersonaRecommendedFor;
   status: PersonaStatus;
+  referenceAssets?: PersonaAsset[];
 }
 
 export interface Persona {

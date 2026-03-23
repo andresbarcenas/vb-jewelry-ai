@@ -1,11 +1,14 @@
 export type StudioLogType =
+  | "job_enqueued"
   | "content_generated"
   | "generation_failed"
   | "approval"
   | "rejection"
   | "publishing_attempt"
   | "job_started"
-  | "job_completed";
+  | "job_completed"
+  | "job_retry"
+  | "job_failed";
 
 export type StudioLogDomain =
   | "ai"

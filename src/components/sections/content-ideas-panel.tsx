@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SectionCard } from "@/components/ui/section-card";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { getJobStatus } from "@/lib/services/ai-job.service";
 import {
   useStudioContent,
   useStudioPersonas,
@@ -49,6 +50,7 @@ export function ContentIdeasPanel() {
     archiveContentIdea,
     regenerateContentIdea,
     generationOptions,
+    refreshStudioData,
   } = useStudioContent();
   const [requestedPersonaId, setRequestedPersonaId] = useState("");
   const [requestedProductId, setRequestedProductId] = useState("");
@@ -56,6 +58,7 @@ export function ContentIdeasPanel() {
   const [mood, setMood] = useState<ContentMood>("Elevated");
   const [contentType, setContentType] = useState<ContentIdeaType>("lifestyle");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [activeGenerationJobId, setActiveGenerationJobId] = useState<string | null>(null);
   const [activeIdeaId, setActiveIdeaId] = useState<string | null>(null);
   const [activeIdeaAction, setActiveIdeaAction] = useState("");
   const [notice, setNotice] = useState("");
@@ -111,7 +114,8 @@ export function ContentIdeasPanel() {
   const selectedPersona = personas.find((persona) => persona.id === selectedPersonaId);
   const selectedProduct = products.find((product) => product.id === selectedProductId);
 
-  const canGenerate = Boolean(selectedPersona && selectedProduct) && !isGenerating;
+  const canGenerate =
+    Boolean(selectedPersona && selectedProduct) && !isGenerating && !activeGenerationJobId;
   const ideas = [...contentIdeas]
     .filter((idea) => idea.status !== "Archived")
     .sort((left, right) => {
@@ -143,18 +147,69 @@ export function ContentIdeasPanel() {
         contentType,
       });
 
-      setRecentIdeaIds(result.ideas.map((idea) => idea.id));
-      setNotice(
-        result.source === "openai"
-          ? `${result.ideas.length} ideas generated and auto-saved.`
-          : `${result.ideas.length} fallback ideas generated and auto-saved. OpenAI was unavailable this time.`,
-      );
+      if (!result?.jobId) {
+        setError("Generation could not be queued right now. Please try again.");
+        return;
+      }
+
+      setActiveGenerationJobId(result.jobId);
+      setNotice("Your image or video content is being prepared and will be available soon.");
     } catch {
       setError("We could not generate ideas right now. Please try again in a moment.");
     } finally {
       setIsGenerating(false);
     }
   }
+
+  const refreshGenerationJobStatus = useCallback(async (jobId: string) => {
+    const status = await getJobStatus(jobId);
+
+    if (!status) {
+      setError("We could not check generation status right now. Please try again.");
+      return;
+    }
+
+    if (status.status === "completed") {
+      await refreshStudioData();
+
+      const ideaIds =
+        Array.isArray(status.metadata?.ideaIds) &&
+        status.metadata.ideaIds.every((value) => typeof value === "string")
+          ? (status.metadata.ideaIds as string[])
+          : [];
+      if (ideaIds.length > 0) {
+        setRecentIdeaIds(ideaIds);
+      }
+
+      setActiveGenerationJobId(null);
+      setNotice(status.message || "Ideas are ready.");
+      return;
+    }
+
+    if (status.status === "failed") {
+      setActiveGenerationJobId(null);
+      setError(status.error || status.message || "Generation failed. Please try again.");
+      return;
+    }
+
+    setNotice("Your image or video content is being prepared and will be available soon.");
+  }, [refreshStudioData]);
+
+  useEffect(() => {
+    if (!activeGenerationJobId) {
+      return;
+    }
+
+    void refreshGenerationJobStatus(activeGenerationJobId);
+
+    const interval = window.setInterval(() => {
+      void refreshGenerationJobStatus(activeGenerationJobId);
+    }, 5000);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [activeGenerationJobId, refreshGenerationJobStatus]);
 
   async function handleIdeaAction(
     ideaId: string,
@@ -183,13 +238,9 @@ export function ContentIdeasPanel() {
 
       if (action === "regenerate") {
         const result = await regenerateContentIdea(ideaId);
-        if (result) {
-          setRecentIdeaIds(result.ideas.map((idea) => idea.id));
-          setNotice(
-            result.source === "openai"
-              ? "Idea regenerated with OpenAI and auto-saved."
-              : "Idea regenerated with fallback content and auto-saved.",
-          );
+        if (result?.jobId) {
+          setActiveGenerationJobId(result.jobId);
+          setNotice("Your image or video content is being prepared and will be available soon.");
         } else {
           setError("We could not regenerate this idea.");
         }
@@ -368,14 +419,29 @@ export function ContentIdeasPanel() {
               ))}
             </div>
 
-            <button
-              className="inline-flex items-center justify-center rounded-full bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={!canGenerate}
-              onClick={() => void handleGenerateIdeas()}
-              type="button"
-            >
-              {isGenerating ? "Generating..." : "Generate Ideas"}
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                className="inline-flex items-center justify-center rounded-full bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={!canGenerate}
+                onClick={() => void handleGenerateIdeas()}
+                type="button"
+              >
+                {isGenerating
+                  ? "Queuing..."
+                  : activeGenerationJobId
+                    ? "Preparing Ideas..."
+                    : "Generate Ideas"}
+              </button>
+              {activeGenerationJobId ? (
+                <button
+                  className="inline-flex items-center justify-center rounded-full border border-border/80 bg-white px-4 py-3 text-sm font-semibold text-foreground transition hover:border-accent/40 hover:text-accent"
+                  onClick={() => void refreshGenerationJobStatus(activeGenerationJobId)}
+                  type="button"
+                >
+                  Refresh status
+                </button>
+              ) : null}
+            </div>
           </div>
         </div>
       </SectionCard>
@@ -581,13 +647,15 @@ export function ContentIdeasPanel() {
                   <div className="grid gap-2 sm:grid-cols-2">
                     <button
                       className="inline-flex items-center justify-center rounded-full border border-border/80 bg-white/85 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-55"
-                      disabled={activeIdeaId === idea.id}
+                      disabled={activeIdeaId === idea.id || activeGenerationJobId !== null}
                       onClick={() => void handleIdeaAction(idea.id, "regenerate")}
                       type="button"
                     >
                       {activeIdeaId === idea.id && activeIdeaAction === "regenerate"
-                        ? "Regenerating..."
-                        : "Regenerate"}
+                        ? "Queuing..."
+                        : activeGenerationJobId
+                          ? "Preparing..."
+                          : "Regenerate"}
                     </button>
 
                     <button

@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.0] - 2026-03-23
+
+### Added
+- Added a Redis-backed background AI job queue with typed records, retry/backoff handling, and delayed requeue support (`src/lib/jobs/ai-job-queue.ts`, `src/types/ai-job.ts`).
+- Added a dedicated AI worker runtime and script for async processing (`src/lib/jobs/ai-worker.ts`, `src/scripts/run-ai-worker.ts`) plus a new `worker:ai` package script.
+- Added a new job-status API endpoint (`GET /api/jobs/[id]`) and client status service for polling (`src/lib/services/ai-job.service.ts`).
+- Added Phase 6 docs for technical and non-technical audiences (`docs/phase-6.md`, `docs/phase-6-simple.md`).
+
+### Changed
+- Moved current OpenAI-backed generation flows out of blocking API requests and into async queue jobs:
+  - content idea generation
+  - content idea regeneration
+  - persona reference-pack generation
+- Updated Content Ideas and Personas UI to show queued/processing states, disable duplicate generation clicks, auto-refresh every 5 seconds, and provide manual status refresh actions.
+- Updated Docker Compose local runtime to include a separate `worker` service alongside `web`, `db`, and `redis`.
+- Added queue configuration environment variables (`AI_QUEUE_POLL_INTERVAL_MS`, `AI_JOB_MAX_ATTEMPTS`, `AI_JOB_BACKOFF_MS`) to compose/env templates.
+- Expanded structured logging with queue lifecycle events (`job_enqueued`, `job_retry`, `job_failed`) for easier diagnostics.
+
 ## [1.3.0] - 2026-03-22
 
 ### Added

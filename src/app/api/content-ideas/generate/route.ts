@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { generateAndSaveContentIdeas } from "@/lib/repositories/content-idea.repository";
+import { enqueueAiJob } from "@/lib/jobs/ai-job-queue";
 import { getPersonaById } from "@/lib/repositories/persona.repository";
 import { getProductById } from "@/lib/repositories/product.repository";
 import {
@@ -7,12 +7,7 @@ import {
   contentPlatformOptions,
   contentTypeOptions,
 } from "@/lib/services/ai.service";
-import type {
-  ContentIdeaGeneratorInput,
-  ContentIdeaType,
-  ContentMood,
-  ContentPlatform,
-} from "@/types/studio";
+import type { ContentIdeaType, ContentMood, ContentPlatform } from "@/types/studio";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -72,16 +67,24 @@ export async function POST(request: Request) {
       ? contentTypeCandidate
       : "lifestyle";
 
-    const input: ContentIdeaGeneratorInput = {
-      persona,
-      product,
+    const job = await enqueueAiJob("content_generation", {
+      personaId: persona.id,
+      productId: product.id,
       platform,
       mood,
       contentType,
-    };
+      count: sanitizeCount(payload.count),
+    });
 
-    const result = await generateAndSaveContentIdeas(input, sanitizeCount(payload.count));
-    return NextResponse.json(result);
+    return NextResponse.json(
+      {
+        jobId: job.id,
+        type: job.type,
+        status: "queued",
+        message: "Content generation queued. Ideas will be available soon.",
+      },
+      { status: 202 },
+    );
   } catch (error) {
     return NextResponse.json(
       {

@@ -1,8 +1,12 @@
 import { personaProfiles as defaultPersonas } from "@/data/mock-studio";
 import { prisma } from "@/lib/prisma";
+import { generatePersonaReferencePack } from "@/lib/services/persona-image-generation.service";
 import type {
   AiPersonaProfile,
+  PersonaAsset,
+  PersonaAssetStatus,
   PersonaRecommendedFor,
+  PersonaReferenceShotType,
   PersonaStatus,
   PersonaUseCaseTag,
 } from "@/types/studio";
@@ -14,6 +18,18 @@ const PERSONA_USE_CASE_TAGS: PersonaUseCaseTag[] = [
   "handmade story",
   "modern minimal",
 ];
+
+interface PersonaAssetRecord {
+  id: string;
+  personaId: string;
+  shotType: string;
+  imageUrl: string;
+  promptUsed: string;
+  provider: string;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 function cleanString(value: unknown, fallback: string) {
   return typeof value === "string" ? value.trim() : fallback;
@@ -94,6 +110,41 @@ function normalizeRecommendedFor(
   };
 }
 
+function normalizeReferenceShotType(value: unknown): PersonaReferenceShotType {
+  if (
+    value === "hero_portrait" ||
+    value === "three_quarter_body" ||
+    value === "side_profile" ||
+    value === "close_up_jewelry"
+  ) {
+    return value;
+  }
+
+  return "hero_portrait";
+}
+
+function normalizeAssetStatus(value: unknown): PersonaAssetStatus {
+  if (value === "approved") {
+    return "approved";
+  }
+
+  return "generated";
+}
+
+function mapPersonaAsset(raw: PersonaAssetRecord): PersonaAsset {
+  return {
+    id: raw.id,
+    personaId: raw.personaId,
+    shotType: normalizeReferenceShotType(raw.shotType),
+    imageUrl: raw.imageUrl,
+    promptUsed: raw.promptUsed,
+    provider: raw.provider,
+    status: normalizeAssetStatus(raw.status),
+    createdAt: raw.createdAt.toISOString(),
+    updatedAt: raw.updatedAt.toISOString(),
+  };
+}
+
 function normalizePersona(raw: unknown, fallback?: AiPersonaProfile): AiPersonaProfile | null {
   if (!raw || typeof raw !== "object") {
     return fallback ?? null;
@@ -141,6 +192,9 @@ function normalizePersona(raw: unknown, fallback?: AiPersonaProfile): AiPersonaP
     promptStarter: cleanString(candidate.promptStarter, fallback?.promptStarter ?? ""),
     recommendedFor,
     status: normalizeStatus(candidate.status, fallback?.status ?? "active"),
+    referenceAssets: Array.isArray(candidate.referenceAssets)
+      ? candidate.referenceAssets
+      : fallback?.referenceAssets ?? [],
   };
 
   if (
@@ -229,6 +283,7 @@ function fromDatabaseOutput(raw: {
   bestMoods: string[];
   bestProductCategories: string[];
   status: string;
+  assets: PersonaAssetRecord[];
 }): AiPersonaProfile | null {
   return normalizePersona(
     {
@@ -238,6 +293,7 @@ function fromDatabaseOutput(raw: {
         bestMoods: raw.bestMoods,
         bestProductCategories: raw.bestProductCategories,
       },
+      referenceAssets: raw.assets.map(mapPersonaAsset),
     },
     defaultPersonas.find((item) => item.id === raw.id),
   );
@@ -245,6 +301,13 @@ function fromDatabaseOutput(raw: {
 
 export async function getPersonas(): Promise<AiPersonaProfile[]> {
   const records = await prisma.persona.findMany({
+    include: {
+      assets: {
+        orderBy: {
+          createdAt: "asc",
+        },
+      },
+    },
     orderBy: {
       createdAt: "asc",
     },
@@ -316,6 +379,76 @@ export async function updatePersona(persona: AiPersonaProfile): Promise<AiPerson
   });
 
   return getPersonas();
+}
+
+export async function generatePersonaReferencePackForPersona(
+  personaId: string,
+): Promise<AiPersonaProfile | null> {
+  const persona = await getPersonaById(personaId);
+
+  if (!persona) {
+    return null;
+  }
+
+  const generatedAssets = await generatePersonaReferencePack({
+    persona,
+  });
+
+  await prisma.$transaction(
+    generatedAssets.map((asset) =>
+      prisma.personaAsset.upsert({
+        where: {
+          personaId_shotType: {
+            personaId,
+            shotType: asset.shotType,
+          },
+        },
+        create: {
+          personaId,
+          shotType: asset.shotType,
+          imageUrl: asset.imageUrl,
+          promptUsed: asset.promptUsed,
+          provider: asset.provider,
+          status: "generated",
+        },
+        update: {
+          imageUrl: asset.imageUrl,
+          promptUsed: asset.promptUsed,
+          provider: asset.provider,
+          status: "generated",
+        },
+      }),
+    ),
+  );
+
+  return getPersonaById(personaId);
+}
+
+export async function setPersonaReferenceAssetApproval(
+  personaId: string,
+  assetId: string,
+  approved: boolean,
+): Promise<AiPersonaProfile | null> {
+  const existing = await prisma.personaAsset.findUnique({
+    where: {
+      id: assetId,
+    },
+  });
+
+  if (!existing || existing.personaId !== personaId) {
+    return null;
+  }
+
+  await prisma.personaAsset.update({
+    where: {
+      id: assetId,
+    },
+    data: {
+      status: approved ? "approved" : "generated",
+    },
+  });
+
+  return getPersonaById(personaId);
 }
 
 export async function deletePersona(personaId: string): Promise<AiPersonaProfile[]> {

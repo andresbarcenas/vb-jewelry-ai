@@ -1,11 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SectionCard } from "@/components/ui/section-card";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { getJobStatus } from "@/lib/services/ai-job.service";
 import { useStudioPersonas } from "@/lib/studio-data-provider";
-import type { AiPersonaProfile, PersonaUseCaseTag } from "@/types/studio";
+import type {
+  AiPersonaProfile,
+  PersonaAsset,
+  PersonaReferenceShotType,
+  PersonaUseCaseTag,
+} from "@/types/studio";
 
 interface FieldShellProps {
   label: string;
@@ -43,6 +49,20 @@ const useCaseTags: Array<{ label: string; value: PersonaUseCaseTag }> = [
   { label: "Handmade Story", value: "handmade story" },
   { label: "Modern Minimal", value: "modern minimal" },
 ];
+
+const referenceShotOrder: PersonaReferenceShotType[] = [
+  "hero_portrait",
+  "three_quarter_body",
+  "side_profile",
+  "close_up_jewelry",
+];
+
+const referenceShotLabels: Record<PersonaReferenceShotType, string> = {
+  hero_portrait: "Hero portrait",
+  three_quarter_body: "3/4 body shot",
+  side_profile: "Side profile",
+  close_up_jewelry: "Close-up jewelry shot",
+};
 
 const photoThemes = [
   "from-[#ead9c1] via-[#f7efe4] to-[#d4c4ae]",
@@ -176,6 +196,13 @@ function buildPromptPreview(persona: AiPersonaProfile) {
     .join(", ")}\nRecommended scene: ${persona.recommendedScenes[0]}\nPreferred colors: ${persona.preferredColors.join(", ")}\nAvoid: ${persona.avoidList.join(", ")}`;
 }
 
+function sortReferenceAssets(assets: PersonaAsset[]) {
+  return [...assets].sort(
+    (left, right) =>
+      referenceShotOrder.indexOf(left.shotType) - referenceShotOrder.indexOf(right.shotType),
+  );
+}
+
 function FieldShell({ label, helperText, children }: FieldShellProps) {
   return (
     <label className="block">
@@ -210,12 +237,27 @@ function PersonaPhotoPlaceholder({
 }
 
 export function PersonasPanel() {
-  const { createPersona, deletePersona, personas, resetPersonas, updatePersona } =
-    useStudioPersonas();
+  const {
+    createPersona,
+    deletePersona,
+    generatePersonaReferencePack,
+    personas,
+    resetPersonas,
+    setPersonaReferenceAssetApproval,
+    updatePersona,
+    refreshStudioData,
+  } = useStudioPersonas();
   const [draft, setDraft] = useState<PersonaDraft>(createEmptyDraft());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [useCaseFilter, setUseCaseFilter] = useState<"all" | PersonaUseCaseTag>("all");
+  const [activeGenerationPersonaId, setActiveGenerationPersonaId] = useState<string | null>(
+    null,
+  );
+  const [activeReferenceJobId, setActiveReferenceJobId] = useState<string | null>(null);
+  const [activeApprovalAssetId, setActiveApprovalAssetId] = useState<string | null>(null);
+  const [referenceNotice, setReferenceNotice] = useState("");
+  const [referenceError, setReferenceError] = useState("");
 
   const personaCount = personas.length;
   const limitReached = personaCount >= MAX_PERSONAS;
@@ -233,6 +275,9 @@ export function PersonasPanel() {
   const selectedPersona = activeSelectedId
     ? filteredPersonas.find((persona) => persona.id === activeSelectedId) ?? null
     : null;
+  const selectedReferenceAssets = selectedPersona
+    ? sortReferenceAssets(selectedPersona.referenceAssets ?? [])
+    : [];
 
   const formIsValid =
     draft.name.trim().length > 0 &&
@@ -320,8 +365,113 @@ export function PersonasPanel() {
     }
   }
 
+  async function handleGenerateReferencePack(persona: AiPersonaProfile) {
+    setReferenceNotice("");
+    setReferenceError("");
+    setActiveGenerationPersonaId(persona.id);
+
+    try {
+      const result = await generatePersonaReferencePack(persona.id);
+
+      if (!result?.jobId) {
+        setReferenceError("We could not queue reference generation right now. Please try again.");
+        return;
+      }
+
+      setActiveReferenceJobId(result.jobId);
+      setReferenceNotice(
+        "Reference images are being prepared and will be available soon.",
+      );
+    } catch {
+      setReferenceError(
+        "We could not generate the reference pack right now. Please try again in a moment.",
+      );
+    } finally {
+      setActiveGenerationPersonaId(null);
+    }
+  }
+
+  const refreshReferenceJobStatus = useCallback(async (jobId: string) => {
+    const status = await getJobStatus(jobId);
+
+    if (!status) {
+      setReferenceError("We could not check reference generation status right now.");
+      return;
+    }
+
+    if (status.status === "completed") {
+      await refreshStudioData();
+      setActiveReferenceJobId(null);
+      setReferenceNotice(
+        `${status.message} If any card shows Provider: mock_fallback, live output was unavailable in this run and a fallback preview was saved.`,
+      );
+      return;
+    }
+
+    if (status.status === "failed") {
+      setActiveReferenceJobId(null);
+      setReferenceError(
+        status.error || status.message || "Reference generation failed. Please try again.",
+      );
+      return;
+    }
+
+    setReferenceNotice("Reference images are being prepared and will be available soon.");
+  }, [refreshStudioData]);
+
+  useEffect(() => {
+    if (!activeReferenceJobId) {
+      return;
+    }
+
+    void refreshReferenceJobStatus(activeReferenceJobId);
+
+    const interval = window.setInterval(() => {
+      void refreshReferenceJobStatus(activeReferenceJobId);
+    }, 5000);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [activeReferenceJobId, refreshReferenceJobStatus]);
+
+  async function handleSetAssetApproval(
+    persona: AiPersonaProfile,
+    asset: PersonaAsset,
+    approved: boolean,
+  ) {
+    setReferenceNotice("");
+    setReferenceError("");
+    setActiveApprovalAssetId(asset.id);
+
+    try {
+      await setPersonaReferenceAssetApproval(persona.id, asset.id, approved);
+      setReferenceNotice(
+        approved
+          ? "Approved reference saved. This shot can guide future AI consistency."
+          : "Approval removed for this reference image.",
+      );
+    } catch {
+      setReferenceError("We could not update that image approval right now.");
+    } finally {
+      setActiveApprovalAssetId(null);
+    }
+  }
+
   return (
     <div className="space-y-5">
+      {referenceNotice ? (
+        <div className="rounded-[20px] border border-success/20 bg-success/10 px-4 py-3 text-sm font-medium text-success">
+          {referenceNotice}
+        </div>
+      ) : null}
+
+      {referenceError ? (
+        <div className="rounded-[20px] border border-danger/20 bg-danger/10 px-4 py-3 text-sm font-medium text-danger">
+          {referenceError}
+        </div>
+      ) : null}
+
       <div className="rounded-[28px] border border-border/80 bg-accent-soft/45 px-5 py-4">
         <p className="text-sm font-semibold text-foreground">Persona guide</p>
         <p className="mt-1 text-sm leading-6 text-muted-foreground">
@@ -538,6 +688,117 @@ export function PersonasPanel() {
                   <pre className="mt-2 whitespace-pre-wrap text-xs leading-6 text-muted-foreground">
                     {buildPromptPreview(selectedPersona)}
                   </pre>
+                </div>
+
+                <div className="rounded-[22px] border border-border/80 bg-white/75 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                        Persona reference pack
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                        These reference images help future AI generation keep {selectedPersona.name} visually consistent.
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                        Live OpenAI generation can take around 1 to 3 minutes for a full pack.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        className="inline-flex items-center justify-center rounded-full bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                        disabled={
+                          activeGenerationPersonaId !== null || activeReferenceJobId !== null
+                        }
+                        onClick={() => {
+                          void handleGenerateReferencePack(selectedPersona);
+                        }}
+                        type="button"
+                      >
+                        {activeGenerationPersonaId === selectedPersona.id
+                          ? "Queuing References..."
+                          : activeReferenceJobId
+                            ? "Preparing References..."
+                            : selectedReferenceAssets.length > 0
+                              ? "Regenerate Reference Pack"
+                              : "Generate Reference Pack"}
+                      </button>
+                      {activeReferenceJobId ? (
+                        <button
+                          className="inline-flex items-center justify-center rounded-full border border-border/80 bg-white px-4 py-2 text-sm font-semibold text-foreground transition hover:border-accent/40 hover:text-accent"
+                          onClick={() => void refreshReferenceJobStatus(activeReferenceJobId)}
+                          type="button"
+                        >
+                          Refresh status
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  {selectedReferenceAssets.length > 0 ? (
+                    <div className="mt-4 space-y-3">
+                      {selectedReferenceAssets.some(
+                        (asset) => asset.provider === "mock_fallback",
+                      ) ? (
+                        <div className="rounded-[16px] border border-warning/20 bg-warning/10 px-3 py-2 text-sm leading-6 text-warning">
+                          Some shots used fallback previews this run because live output was unavailable.
+                        </div>
+                      ) : null}
+
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {selectedReferenceAssets.map((asset) => (
+                          <div
+                            className="rounded-[18px] border border-border/80 bg-white p-3"
+                            key={asset.id}
+                          >
+                            <div className="overflow-hidden rounded-[14px] border border-border/70 bg-accent-soft/20">
+                              {/* Using native img keeps mixed remote/data-URL previews simple in internal admin mode. */}
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                alt={`${selectedPersona.name} ${referenceShotLabels[asset.shotType]}`}
+                                className="h-40 w-full object-cover"
+                                src={asset.imageUrl}
+                              />
+                            </div>
+                            <div className="mt-3 flex items-center justify-between gap-3">
+                              <div>
+                                <p className="text-sm font-semibold text-foreground">
+                                  {referenceShotLabels[asset.shotType]}
+                                </p>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                  Provider: {asset.provider}
+                                </p>
+                              </div>
+                              <StatusBadge
+                                value={asset.status === "approved" ? "Approved" : "Generated"}
+                              />
+                            </div>
+                            <button
+                              className="mt-3 inline-flex items-center justify-center rounded-full border border-border/80 bg-white px-3 py-1.5 text-xs font-semibold text-foreground transition hover:border-accent/40 hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+                              disabled={activeApprovalAssetId !== null}
+                              onClick={() => {
+                                void handleSetAssetApproval(
+                                  selectedPersona,
+                                  asset,
+                                  asset.status !== "approved",
+                                );
+                              }}
+                              type="button"
+                            >
+                              {activeApprovalAssetId === asset.id
+                                ? "Saving..."
+                                : asset.status === "approved"
+                                  ? "Remove Approval"
+                                  : "Approve Reference"}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-4 rounded-[16px] border border-dashed border-border/80 bg-accent-soft/20 px-3 py-3 text-sm leading-6 text-muted-foreground">
+                      No reference images yet. Generate a pack to create hero, 3/4 body, side profile, and close-up shots for this persona.
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex flex-wrap gap-3 border-t border-border/70 pt-2">

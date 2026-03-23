@@ -28,14 +28,15 @@ import {
   rejectReview,
   requestVideoGeneration,
   saveContentIdea,
-  type ContentIdeaGenerationResult,
   type ContentGenerationOptions,
 } from "@/lib/services/content.service";
 import {
   createPersona,
   deletePersona,
+  generatePersonaReferencePack,
   listPersonas,
   resetPersonas,
+  setPersonaReferenceAssetApproval,
   updatePersona,
 } from "@/lib/services/persona.service";
 import {
@@ -65,6 +66,7 @@ import type {
   BrandProfile,
   ContentIdea,
   ContentIdeaGeneratorInput,
+  EnqueueJobResponse,
   ProductLibraryItem,
   PublishingQueueEntry,
   VideoReviewItem,
@@ -93,19 +95,25 @@ interface StudioDataContextValue {
   updatePersona: (persona: AiPersonaProfile) => Promise<void>;
   deletePersona: (personaId: string) => Promise<void>;
   resetPersonas: () => Promise<void>;
+  generatePersonaReferencePack: (personaId: string) => Promise<EnqueueJobResponse | null>;
+  setPersonaReferenceAssetApproval: (
+    personaId: string,
+    assetId: string,
+    approved: boolean,
+  ) => Promise<void>;
   createProduct: (product: ProductLibraryItem) => Promise<void>;
   updateProduct: (product: ProductLibraryItem) => Promise<void>;
   deleteProduct: (productId: string) => Promise<void>;
   resetProducts: () => Promise<void>;
   generateIdeas: (
     input: ContentIdeaGeneratorInput,
-  ) => Promise<ContentIdeaGenerationResult>;
+  ) => Promise<EnqueueJobResponse | null>;
   saveContentIdea: (ideaId: string) => Promise<void>;
   generateVisualPlanForIdea: (ideaId: string) => Promise<ContentIdea | null>;
   markContentIdeaReadyForReview: (ideaId: string) => Promise<void>;
   sendContentIdeaToReview: (ideaId: string) => Promise<void>;
   archiveContentIdea: (ideaId: string) => Promise<void>;
-  regenerateContentIdea: (ideaId: string) => Promise<ContentIdeaGenerationResult | null>;
+  regenerateContentIdea: (ideaId: string) => Promise<EnqueueJobResponse | null>;
   approveReview: (reviewId: string, reviewer: string, notes: string) => Promise<void>;
   rejectReview: (reviewId: string, reviewer: string, notes: string) => Promise<void>;
   requestVideoGeneration: (reviewId: string) => Promise<unknown>;
@@ -281,6 +289,22 @@ export function StudioDataProvider({ children }: StudioDataProviderProps) {
     setPersonasState(updated);
   }, []);
 
+  const generatePersonaReferencePackAction = useCallback(async (personaId: string) => {
+    return generatePersonaReferencePack(personaId);
+  }, []);
+
+  const setPersonaReferenceAssetApprovalAction = useCallback(
+    async (personaId: string, assetId: string, approved: boolean) => {
+      const updated = await setPersonaReferenceAssetApproval(
+        personaId,
+        assetId,
+        approved,
+      );
+      setPersonasState(updated);
+    },
+    [],
+  );
+
   const createProductAction = useCallback(async (product: ProductLibraryItem) => {
     const updated = await createProduct(product);
     setProductsState(updated);
@@ -303,13 +327,9 @@ export function StudioDataProvider({ children }: StudioDataProviderProps) {
 
   const generateIdeasAction = useCallback(
     async (input: ContentIdeaGeneratorInput) => {
-      const result = await generateIdeas(input);
-      const refreshedIdeas = await listContentIdeas();
-      setContentIdeasState(refreshedIdeas);
-      await refreshAnalyticsViews();
-      return result;
+      return generateIdeas(input);
     },
-    [refreshAnalyticsViews],
+    [],
   );
 
   const saveContentIdeaAction = useCallback(
@@ -377,25 +397,8 @@ export function StudioDataProvider({ children }: StudioDataProviderProps) {
   );
 
   const regenerateContentIdeaAction = useCallback(
-    async (ideaId: string) => {
-      const updated = await regenerateContentIdea(ideaId);
-
-      if (updated?.idea) {
-        setContentIdeasState((current) =>
-          current.map((item) => (item.id === updated.idea.id ? updated.idea : item)),
-        );
-      }
-
-      await refreshAnalyticsViews();
-      return updated
-        ? {
-            ideas: [updated.idea],
-            source: updated.source ?? "openai",
-            message: updated.message ?? "Idea regenerated.",
-          }
-        : null;
-    },
-    [refreshAnalyticsViews],
+    async (ideaId: string) => regenerateContentIdea(ideaId),
+    [],
   );
 
   const approveReviewAction = useCallback(
@@ -468,6 +471,8 @@ export function StudioDataProvider({ children }: StudioDataProviderProps) {
       updatePersona: updatePersonaAction,
       deletePersona: deletePersonaAction,
       resetPersonas: resetPersonasAction,
+      generatePersonaReferencePack: generatePersonaReferencePackAction,
+      setPersonaReferenceAssetApproval: setPersonaReferenceAssetApprovalAction,
       createProduct: createProductAction,
       updateProduct: updateProductAction,
       deleteProduct: deleteProductAction,
@@ -507,6 +512,8 @@ export function StudioDataProvider({ children }: StudioDataProviderProps) {
       updatePersonaAction,
       deletePersonaAction,
       resetPersonasAction,
+      generatePersonaReferencePackAction,
+      setPersonaReferenceAssetApprovalAction,
       createProductAction,
       updateProductAction,
       deleteProductAction,
@@ -555,6 +562,9 @@ export function useStudioPersonas() {
     updatePersona: context.updatePersona,
     deletePersona: context.deletePersona,
     resetPersonas: context.resetPersonas,
+    generatePersonaReferencePack: context.generatePersonaReferencePack,
+    setPersonaReferenceAssetApproval: context.setPersonaReferenceAssetApproval,
+    refreshStudioData: context.refreshStudioData,
   };
 }
 
@@ -589,6 +599,7 @@ export function useStudioContent() {
     approveReview: context.approveReview,
     rejectReview: context.rejectReview,
     requestVideoGeneration: context.requestVideoGeneration,
+    refreshStudioData: context.refreshStudioData,
   };
 }
 

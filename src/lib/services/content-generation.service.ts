@@ -1,5 +1,3 @@
-import "server-only";
-
 import { logEvent } from "@/lib/logger";
 import { generateContentIdeas as generateMockContentIdeas } from "@/lib/services/ai.service";
 import type {

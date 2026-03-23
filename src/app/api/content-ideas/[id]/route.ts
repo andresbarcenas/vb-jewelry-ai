@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
+import { enqueueAiJob } from "@/lib/jobs/ai-job-queue";
 import {
   generateVisualPlanForIdea,
-  regenerateContentIdea,
   updateContentIdeaStatus,
 } from "@/lib/repositories/content-idea.repository";
 import type { ContentIdeaStatus } from "@/types/studio";
@@ -52,20 +52,19 @@ export async function PATCH(request: Request, { params }: Params) {
     }
 
     if (payload.action === "regenerate") {
-      const regenerated = await regenerateContentIdea(id);
-
-      if (!regenerated || regenerated.ideas.length === 0) {
-        return NextResponse.json(
-          { message: "Unable to regenerate this idea." },
-          { status: 404 },
-        );
-      }
-
-      return NextResponse.json({
-        idea: regenerated.ideas[0],
-        source: regenerated.source,
-        message: regenerated.message,
+      const job = await enqueueAiJob("content_regeneration", {
+        ideaId: id,
       });
+
+      return NextResponse.json(
+        {
+          jobId: job.id,
+          type: job.type,
+          status: "queued",
+          message: "Idea regeneration queued. Updated concept will be available soon.",
+        },
+        { status: 202 },
+      );
     }
 
     if (payload.action === "generate_visual_plan") {
