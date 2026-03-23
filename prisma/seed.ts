@@ -98,7 +98,6 @@ async function seed() {
 
   await prisma.videoAsset.createMany({
     data: contentIdeas.map((idea) => ({
-      id: `video-asset-${idea.id}`,
       contentIdeaId: idea.id,
       status: "draft",
       videoUrl: null,

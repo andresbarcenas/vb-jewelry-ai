@@ -98,17 +98,20 @@ function ensureText(value: string | undefined, fallback: string) {
   return normalized && normalized.length > 0 ? normalized : fallback;
 }
 
-function buildVideoAssetId(contentIdeaId: string) {
-  return `video-asset-${contentIdeaId}`;
-}
-
 function serializeVisualPlan(plan: VisualPlan) {
+  // We intentionally serialize as text for now because `visualPlan` is a String column.
+  // This can move to a native JSON column in Prisma when we finalize provider contracts.
   return JSON.stringify({
     sceneDescription: plan.sceneDescription.trim(),
     lighting: plan.lighting.trim(),
     cameraAngle: plan.cameraAngle.trim(),
     motion: plan.motion.trim(),
     stylingNotes: plan.stylingNotes.trim(),
+    productFocus: plan.productFocus.trim(),
+    sceneMood: plan.sceneMood.trim(),
+    background: plan.background.trim(),
+    avoid: plan.avoid.trim(),
+    shotSequence: plan.shotSequence.map((item) => item.trim()).filter(Boolean),
   });
 }
 
@@ -125,14 +128,32 @@ function parseVisualPlan(raw: string | null): VisualPlan | undefined {
       typeof parsed.lighting === "string" &&
       typeof parsed.cameraAngle === "string" &&
       typeof parsed.motion === "string" &&
-      typeof parsed.stylingNotes === "string"
+      typeof parsed.stylingNotes === "string" &&
+      typeof parsed.productFocus === "string" &&
+      typeof parsed.sceneMood === "string" &&
+      typeof parsed.background === "string" &&
+      typeof parsed.avoid === "string" &&
+      Array.isArray(parsed.shotSequence)
     ) {
+      const shotSequence = parsed.shotSequence
+        .filter((item): item is string => typeof item === "string")
+        .map((item) => item.trim())
+        .filter(Boolean);
+
       return {
         sceneDescription: parsed.sceneDescription.trim(),
         lighting: parsed.lighting.trim(),
         cameraAngle: parsed.cameraAngle.trim(),
         motion: parsed.motion.trim(),
         stylingNotes: parsed.stylingNotes.trim(),
+        productFocus: parsed.productFocus.trim(),
+        sceneMood: parsed.sceneMood.trim(),
+        background: parsed.background.trim(),
+        avoid: parsed.avoid.trim(),
+        shotSequence:
+          shotSequence.length > 0
+            ? shotSequence
+            : ["Open with a clear hook shot and keep product visibility centered."],
       };
     }
   } catch {
@@ -150,6 +171,18 @@ function parseVisualPlan(raw: string | null): VisualPlan | undefined {
     cameraAngle: "Use a blend of close-up details and waist-up framing.",
     motion: "Keep motion steady with gentle transitions.",
     stylingNotes: "Keep styling minimal so the jewelry remains the hero.",
+    productFocus:
+      "Keep the featured jewelry visible in every shot and avoid framing that hides product shape.",
+    sceneMood: "Polished, handcrafted, and premium.",
+    background: "Use a clean neutral background with minimal prop clutter.",
+    avoid:
+      "Avoid vague setups, fast chaotic edits, and any angle where the product is obscured.",
+    shotSequence: [
+      "Open with a hook shot where the product is centered and clearly visible.",
+      "Move into a contextual medium frame that keeps product placement readable.",
+      "Capture a close detail shot focused on texture, finish, or clasp.",
+      "End on a stable hero shot ready for caption and CTA handoff.",
+    ],
   };
 }
 
@@ -265,7 +298,6 @@ function buildDraftVideoAsset(
   generationNotes = "Video not generated yet. Create a visual plan first.",
 ) {
   return {
-    id: buildVideoAssetId(contentIdeaId),
     contentIdeaId,
     status: "draft",
     videoUrl: null,
@@ -519,7 +551,7 @@ export async function generateVisualPlanForIdea(
 
   await prisma.videoAsset.upsert({
     where: {
-      id: buildVideoAssetId(ideaId),
+      contentIdeaId: ideaId,
     },
     create: {
       ...buildDraftVideoAsset(
@@ -555,7 +587,7 @@ export async function generateVisualPlanForIdea(
 
   await prisma.videoAsset.upsert({
     where: {
-      id: buildVideoAssetId(ideaId),
+      contentIdeaId: ideaId,
     },
     create: buildDraftVideoAsset(
       ideaId,
@@ -592,7 +624,7 @@ export async function generateVisualPlanForIdea(
     message: "Visual plan generated and saved for content idea.",
     metadata: {
       ideaId,
-      videoAssetId: buildVideoAssetId(ideaId),
+      videoAssetKey: ideaId,
     },
   });
 
@@ -694,7 +726,7 @@ export async function regenerateContentIdea(
 
   await prisma.videoAsset.upsert({
     where: {
-      id: buildVideoAssetId(ideaId),
+      contentIdeaId: ideaId,
     },
     create: buildDraftVideoAsset(
       ideaId,

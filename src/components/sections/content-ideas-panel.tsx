@@ -531,6 +531,50 @@ export function ContentIdeasPanel() {
                           {idea.visualPlan.stylingNotes}
                         </p>
                       </div>
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                          Product focus
+                        </p>
+                        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                          {idea.visualPlan.productFocus}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                          Scene mood
+                        </p>
+                        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                          {idea.visualPlan.sceneMood}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                          Background
+                        </p>
+                        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                          {idea.visualPlan.background}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                          Avoid
+                        </p>
+                        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                          {idea.visualPlan.avoid}
+                        </p>
+                      </div>
+                      {idea.visualPlan.shotSequence.length > 0 ? (
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                            Shot sequence
+                          </p>
+                          <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm leading-6 text-muted-foreground">
+                            {idea.visualPlan.shotSequence.map((step, index) => (
+                              <li key={`${idea.id}-shot-step-${index + 1}`}>{step}</li>
+                            ))}
+                          </ol>
+                        </div>
+                      ) : null}
                     </div>
                   ) : null}
 

@@ -1,7 +1,10 @@
 import { createJobId, waitFor } from "@/lib/jobs/job.utils";
 import type { JobResult } from "@/lib/jobs/job.types";
 import { logEvent } from "@/lib/logger";
-import { generateVisualPlan } from "@/lib/services/visual-plan.service";
+import {
+  buildVisualPlanPrompt,
+  generateVisualPlan,
+} from "@/lib/services/visual-plan.service";
 import type { ContentIdea, VisualPlan } from "@/types/studio";
 
 export interface GenerateVisualPlanJobInput {
@@ -19,6 +22,7 @@ export async function runGenerateVisualPlanJob(
 ): Promise<JobResult<GenerateVisualPlanJobOutput>> {
   const jobId = createJobId("job-generate-visual-plan");
   const startedAt = new Date().toISOString();
+  const prompt = buildVisualPlanPrompt(input.contentIdea);
 
   logEvent({
     type: "job_started",
@@ -30,6 +34,7 @@ export async function runGenerateVisualPlanJob(
       contentIdeaId: input.contentIdea.id,
       personaName: input.contentIdea.personaName,
       productName: input.contentIdea.productName ?? input.contentIdea.products[0] ?? "",
+      promptPreview: prompt.slice(0, 240),
     },
   });
 

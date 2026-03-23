@@ -25,6 +25,8 @@ New `VideoAsset` model:
 - `createdAt`
 - `updatedAt`
 
+`VideoAsset.id` now uses a default generated value, while `contentIdeaId` remains the linking relation.
+
 ## 2) Visual plan service
 
 Added:
@@ -42,8 +44,18 @@ Output shape:
 - `cameraAngle`
 - `motion`
 - `stylingNotes`
+- `productFocus`
+- `sceneMood`
+- `background`
+- `avoid`
+- `shotSequence`
 
 The service uses content idea context (mood, content type, persona, product) to produce consistent mock production guidance.
+It also includes stricter prompt instructions for future model-driven generation:
+
+- be visually specific
+- require product visibility guidance
+- avoid vague language like "nice setting" or "stylish look"
 
 ## 3) Job layer for visual plans
 
@@ -68,6 +80,8 @@ This job:
 - creates draft video assets for seeded/generated ideas
 - exposes `generateVisualPlanForIdea(ideaId)`
 
+`visualPlan` is intentionally serialized as JSON text for now, with code comments noting this can become a native JSON Prisma column later.
+
 `src/app/api/content-ideas/[id]/route.ts` now supports:
 
 - `action: "generate_visual_plan"`
@@ -78,6 +92,8 @@ This job:
 
 - `Generate Visual Plan` / `Regenerate Visual Plan` action per idea
 - expandable visual plan display
+- labeled sections for each visual-plan field
+- ordered shot sequence rendering when steps are available
 - video asset tracking panel with status badge
 - placeholder messaging: `Video not generated yet`
 
@@ -92,3 +108,7 @@ Still not implemented in Phase 4:
 - real storage/CDN workflows for video outputs
 
 Those will plug into this foundation in a future phase without requiring a UI redesign.
+
+## Why this matters for future providers
+
+Structured visual plans reduce ambiguity before rendering, which helps future Arcads/Creatify/Runway integrations map cleanly from planning data into provider-specific generation payloads.

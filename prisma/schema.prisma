@@ -85,7 +85,7 @@ model ContentIdea {
 }
 
 model VideoAsset {
-  id              String      @id
+  id              String      @id @default(cuid())
   contentIdeaId   String
   contentIdea     ContentIdea @relation(fields: [contentIdeaId], references: [id], onDelete: Cascade)
   status          String
@@ -96,6 +96,7 @@ model VideoAsset {
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
+  @@unique([contentIdeaId])
   @@index([contentIdeaId])
 }
 

@@ -62,6 +62,11 @@ export interface VisualPlan {
   cameraAngle: string;
   motion: string;
   stylingNotes: string;
+  productFocus: string;
+  sceneMood: string;
+  background: string;
+  avoid: string;
+  shotSequence: string[];
 }
 
 export interface ContentIdea {

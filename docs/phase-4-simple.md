@@ -12,6 +12,11 @@ This phase prepares the app to move from idea planning into visual production.
    - camera angle
    - motion
    - styling notes
+   - product focus
+   - scene mood
+   - background
+   - what to avoid
+   - shot sequence steps
 4. The app tracks a video asset status for that idea.
 
 Right now, video output is still mock-only, so the UI will show:
@@ -25,6 +30,8 @@ The app now has a dedicated video tracking structure so future tools can plug in
 - real video generation provider
 - real video URL and thumbnail handling
 - clearer handoff from planning to production
+
+Structured visual plans make this easier because video providers work better with clear fields (instead of loose notes).
 
 ## What stays simple for you
 
