@@ -22,11 +22,12 @@ interface GenerateIdeasPayload {
 }
 
 function sanitizeCount(raw: unknown) {
+  // Phase setting: generate one idea at a time for tighter review control.
   if (typeof raw !== "number" || Number.isNaN(raw)) {
-    return 5;
+    return 1;
   }
 
-  return Math.min(5, Math.max(3, Math.round(raw)));
+  return 1;
 }
 
 export async function POST(request: Request) {

@@ -1,6 +1,20 @@
-import { productLibraryItems as defaultProducts } from "@/data/mock-studio";
 import { prisma } from "@/lib/prisma";
 import type { ProductLibraryItem } from "@/types/studio";
+
+const seedProducts: ProductLibraryItem[] = [
+  {
+    id: "product-vb-test-studio",
+    productName: "VB Test Studio Necklace",
+    category: "Necklaces",
+    material: "14k gold vermeil with freshwater pearl accent",
+    color: "Soft gold",
+    styleTags: ["test product", "studio", "minimal"],
+    productNotes:
+      "Single development product used as a stable test item while we transition away from mock product data.",
+    imageDataUrl: null,
+    imageName: "vb-test-studio-necklace.png",
+  },
+];
 
 function cleanString(value: unknown, fallback: string) {
   return typeof value === "string" ? value.trim() : fallback;
@@ -97,7 +111,7 @@ function fromDatabaseOutput(raw: {
   imageDataUrl: string | null;
   imageName: string;
 }): ProductLibraryItem | null {
-  return normalizeProduct(raw, defaultProducts.find((item) => item.id === raw.id));
+  return normalizeProduct(raw, seedProducts.find((item) => item.id === raw.id));
 }
 
 export async function getProducts(): Promise<ProductLibraryItem[]> {
@@ -109,16 +123,16 @@ export async function getProducts(): Promise<ProductLibraryItem[]> {
 
   if (records.length === 0) {
     await prisma.product.createMany({
-      data: defaultProducts.map(toDatabaseInput),
+      data: seedProducts.map(toDatabaseInput),
     });
-    return defaultProducts;
+    return seedProducts;
   }
 
   const normalized = records
     .map(fromDatabaseOutput)
     .filter((item): item is ProductLibraryItem => item !== null);
 
-  return normalizeProducts(normalized, defaultProducts);
+  return normalizeProducts(normalized, seedProducts);
 }
 
 export async function listProducts(): Promise<ProductLibraryItem[]> {
@@ -187,7 +201,7 @@ export async function deleteProduct(productId: string): Promise<ProductLibraryIt
 export async function resetProducts(): Promise<ProductLibraryItem[]> {
   await prisma.product.deleteMany();
   await prisma.product.createMany({
-    data: defaultProducts.map(toDatabaseInput),
+    data: seedProducts.map(toDatabaseInput),
   });
   return getProducts();
 }

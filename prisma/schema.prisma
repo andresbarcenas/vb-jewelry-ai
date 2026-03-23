@@ -39,6 +39,7 @@ model Persona {
   bestMoods             String[]
   bestProductCategories String[]
   status                String
+  primaryReferenceImageUrl String?
   assets                PersonaAsset[]
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
@@ -97,8 +98,32 @@ model ContentIdea {
   autoSaved       Boolean  @default(true)
   targetLaunch    String
   videoAssets     VideoAsset[]
+  productImageAssets ProductImageAsset[]
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+model ProductImageAsset {
+  id            String   @id @default(cuid())
+  personaId     String
+  productId     String
+  contentIdeaId String
+  contentIdea   ContentIdea @relation(fields: [contentIdeaId], references: [id], onDelete: Cascade)
+  imageUrl      String   @db.Text
+  status        String   @default("generated")
+  provider      String
+  promptUsed    String   @db.Text
+  notes         String?  @db.Text
+  matchScore    Float?
+  matchStatus   String?
+  qaNotes       String[] @default([])
+  attempt       Int?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([contentIdeaId])
+  @@index([personaId])
+  @@index([productId])
 }
 
 model VideoAsset {

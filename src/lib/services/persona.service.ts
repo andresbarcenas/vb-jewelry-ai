@@ -207,6 +207,10 @@ function normalizePersona(raw: unknown, fallback?: AiPersonaProfile): AiPersonaP
     promptStarter: cleanString(candidate.promptStarter, fallback?.promptStarter ?? ""),
     recommendedFor,
     status: normalizeStatus(candidate.status, fallback?.status ?? "active"),
+    primaryReferenceImageUrl: cleanString(
+      candidate.primaryReferenceImageUrl,
+      fallback?.primaryReferenceImageUrl ?? "",
+    ) || undefined,
     referenceAssets: normalizeReferenceAssets(candidate.referenceAssets),
   };
 
@@ -376,6 +380,27 @@ export async function setPersonaReferenceAssetApproval(
       method: "PATCH",
       body: JSON.stringify({
         approved,
+      }),
+    },
+  );
+
+  if (updated) {
+    return listPersonas();
+  }
+
+  return listPersonas();
+}
+
+export async function setPersonaPrimaryReferenceAsset(
+  personaId: string,
+  assetId: string,
+): Promise<AiPersonaProfile[]> {
+  const updated = await requestJson<AiPersonaProfile>(
+    `/api/personas/${personaId}/assets/${assetId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({
+        setPrimary: true,
       }),
     },
   );

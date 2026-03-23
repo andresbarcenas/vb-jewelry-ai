@@ -1,7 +1,9 @@
 import {
   generateAndSaveContentIdeas,
+  generateProductImagesForIdea,
   regenerateContentIdea,
 } from "@/lib/repositories/content-idea.repository";
+import { ProductImageGenerationError } from "@/lib/services/product-image-generation.service";
 import {
   generatePersonaReferencePackForPersona,
   getPersonaById,
@@ -20,6 +22,7 @@ import type {
   AiJobRecord,
   ContentIdeaGeneratorInput,
   ContentGenerationJobPayload,
+  ProductImageGenerationJobPayload,
   ContentRegenerationJobPayload,
   PersonaReferencePackJobPayload,
 } from "@/types/studio";
@@ -40,6 +43,10 @@ function asPersonaPayload(payload: unknown): PersonaReferencePackJobPayload {
 
 function asRegenerationPayload(payload: unknown): ContentRegenerationJobPayload {
   return payload as ContentRegenerationJobPayload;
+}
+
+function asProductImagePayload(payload: unknown): ProductImageGenerationJobPayload {
+  return payload as ProductImageGenerationJobPayload;
 }
 
 async function processContentGenerationJob(job: AiJobRecord) {
@@ -126,6 +133,28 @@ async function processContentRegenerationJob(job: AiJobRecord) {
   };
 }
 
+async function processProductImageGenerationJob(job: AiJobRecord) {
+  const payload = asProductImagePayload(job.payload);
+  const result = await generateProductImagesForIdea(
+    payload.contentIdeaId,
+    payload.count,
+    payload.replaceAssetId,
+  );
+
+  return {
+    message: `${result.generatedCount} product image(s) generated and saved.`,
+    metadata: {
+      ideaCount: 1,
+      ideaIds: [result.idea.id],
+      ideaId: result.idea.id,
+      generatedCount: result.generatedCount,
+      openAiCount: result.openAiCount,
+      fallbackCount: result.fallbackCount,
+      replaceAssetId: payload.replaceAssetId ?? null,
+    },
+  };
+}
+
 async function processJob(job: AiJobRecord) {
   if (job.type === "content_generation") {
     return processContentGenerationJob(job);
@@ -137,6 +166,10 @@ async function processJob(job: AiJobRecord) {
 
   if (job.type === "content_regeneration") {
     return processContentRegenerationJob(job);
+  }
+
+  if (job.type === "product_image_generation") {
+    return processProductImageGenerationJob(job);
   }
 
   throw new Error(`Unsupported job type: ${job.type}`);
@@ -173,9 +206,24 @@ export async function runAiWorkerLoop() {
         const result = await processJob(startedJob);
         await markAiJobCompleted(startedJob, result.message, result.metadata);
       } catch (error) {
+        const reasonCode =
+          error instanceof ProductImageGenerationError ? error.code : undefined;
+
         await markAiJobFailed(
           startedJob,
           error instanceof Error ? error.message : "Unknown worker failure",
+          reasonCode
+            ? {
+                reasonCode,
+              }
+            : undefined,
+          reasonCode
+            ? {
+                // Product-image strict mode already retries inside generation service.
+                // Avoid queue-level retries for known hard-block reason codes.
+                disableRetry: true,
+              }
+            : undefined,
         );
       }
     } catch (error) {

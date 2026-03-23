@@ -192,6 +192,10 @@ function normalizePersona(raw: unknown, fallback?: AiPersonaProfile): AiPersonaP
     promptStarter: cleanString(candidate.promptStarter, fallback?.promptStarter ?? ""),
     recommendedFor,
     status: normalizeStatus(candidate.status, fallback?.status ?? "active"),
+    primaryReferenceImageUrl: cleanString(
+      candidate.primaryReferenceImageUrl,
+      fallback?.primaryReferenceImageUrl ?? "",
+    ) || undefined,
     referenceAssets: Array.isArray(candidate.referenceAssets)
       ? candidate.referenceAssets
       : fallback?.referenceAssets ?? [],
@@ -262,6 +266,7 @@ function toDatabaseInput(persona: AiPersonaProfile) {
     bestMoods: persona.recommendedFor.bestMoods,
     bestProductCategories: persona.recommendedFor.bestProductCategories,
     status: persona.status,
+    primaryReferenceImageUrl: persona.primaryReferenceImageUrl ?? null,
   };
 }
 
@@ -283,6 +288,7 @@ function fromDatabaseOutput(raw: {
   bestMoods: string[];
   bestProductCategories: string[];
   status: string;
+  primaryReferenceImageUrl: string | null;
   assets: PersonaAssetRecord[];
 }): AiPersonaProfile | null {
   return normalizePersona(
@@ -293,6 +299,7 @@ function fromDatabaseOutput(raw: {
         bestMoods: raw.bestMoods,
         bestProductCategories: raw.bestProductCategories,
       },
+      primaryReferenceImageUrl: raw.primaryReferenceImageUrl ?? undefined,
       referenceAssets: raw.assets.map(mapPersonaAsset),
     },
     defaultPersonas.find((item) => item.id === raw.id),
@@ -371,11 +378,24 @@ export async function updatePersona(persona: AiPersonaProfile): Promise<AiPerson
     return current;
   }
 
+  const existing = await prisma.persona.findUnique({
+    where: {
+      id: candidate.id,
+    },
+    select: {
+      primaryReferenceImageUrl: true,
+    },
+  });
+
   await prisma.persona.update({
     where: {
       id: candidate.id,
     },
-    data: toDatabaseInput(candidate),
+    data: {
+      ...toDatabaseInput(candidate),
+      primaryReferenceImageUrl:
+        candidate.primaryReferenceImageUrl ?? existing?.primaryReferenceImageUrl ?? null,
+    },
   });
 
   return getPersonas();
@@ -447,6 +467,64 @@ export async function setPersonaReferenceAssetApproval(
       status: approved ? "approved" : "generated",
     },
   });
+
+  if (!approved) {
+    const persona = await prisma.persona.findUnique({
+      where: {
+        id: personaId,
+      },
+      select: {
+        primaryReferenceImageUrl: true,
+      },
+    });
+
+    if (persona?.primaryReferenceImageUrl === existing.imageUrl) {
+      await prisma.persona.update({
+        where: {
+          id: personaId,
+        },
+        data: {
+          primaryReferenceImageUrl: null,
+        },
+      });
+    }
+  }
+
+  return getPersonaById(personaId);
+}
+
+export async function setPersonaPrimaryReferenceAsset(
+  personaId: string,
+  assetId: string,
+): Promise<AiPersonaProfile | null> {
+  const existing = await prisma.personaAsset.findUnique({
+    where: {
+      id: assetId,
+    },
+  });
+
+  if (!existing || existing.personaId !== personaId) {
+    return null;
+  }
+
+  await prisma.$transaction([
+    prisma.personaAsset.update({
+      where: {
+        id: assetId,
+      },
+      data: {
+        status: "approved",
+      },
+    }),
+    prisma.persona.update({
+      where: {
+        id: personaId,
+      },
+      data: {
+        primaryReferenceImageUrl: existing.imageUrl,
+      },
+    }),
+  ]);
 
   return getPersonaById(personaId);
 }

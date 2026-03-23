@@ -56,6 +56,41 @@ export interface ContentIdeaGenerationResult {
   message: string;
 }
 
+export type ProductImageAssetStatus = "generated" | "approved" | "discarded";
+export type ProductImageMatchStatus = "pass" | "fail";
+
+export interface ProductImageQaResult {
+  score: number;
+  pass: boolean;
+  reasons: string[];
+  productVisible: boolean;
+  visibilityReasons: string[];
+}
+
+export interface ProductImageAsset {
+  id: string;
+  personaId: string;
+  productId: string;
+  contentIdeaId: string;
+  imageUrl: string;
+  status: ProductImageAssetStatus;
+  provider: string;
+  promptUsed: string;
+  notes?: string;
+  matchScore?: number;
+  matchStatus?: ProductImageMatchStatus;
+  qaNotes?: string[];
+  attempt?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ProductImageGenerationInput {
+  contentIdeaId: string;
+  count?: number;
+  replaceAssetId?: string;
+}
+
 export interface VisualPlan {
   sceneDescription: string;
   lighting: string;
@@ -91,6 +126,7 @@ export interface ContentIdea {
   priority: ContentIdeaPriority;
   autoSaved?: boolean;
   videoAssets?: VideoAsset[];
+  productImageAssets?: ProductImageAsset[];
   targetLaunch: string;
   createdAt?: string;
   updatedAt?: string;

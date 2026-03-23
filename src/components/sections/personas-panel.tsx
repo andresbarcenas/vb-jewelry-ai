@@ -243,6 +243,7 @@ export function PersonasPanel() {
     generatePersonaReferencePack,
     personas,
     resetPersonas,
+    setPersonaPrimaryReferenceAsset,
     setPersonaReferenceAssetApproval,
     updatePersona,
     refreshStudioData,
@@ -256,6 +257,7 @@ export function PersonasPanel() {
   );
   const [activeReferenceJobId, setActiveReferenceJobId] = useState<string | null>(null);
   const [activeApprovalAssetId, setActiveApprovalAssetId] = useState<string | null>(null);
+  const [activePrimaryAssetId, setActivePrimaryAssetId] = useState<string | null>(null);
   const [referenceNotice, setReferenceNotice] = useState("");
   const [referenceError, setReferenceError] = useState("");
 
@@ -455,6 +457,23 @@ export function PersonasPanel() {
       setReferenceError("We could not update that image approval right now.");
     } finally {
       setActiveApprovalAssetId(null);
+    }
+  }
+
+  async function handleSetPrimaryAsset(persona: AiPersonaProfile, asset: PersonaAsset) {
+    setReferenceNotice("");
+    setReferenceError("");
+    setActivePrimaryAssetId(asset.id);
+
+    try {
+      await setPersonaPrimaryReferenceAsset(persona.id, asset.id);
+      setReferenceNotice(
+        "Primary reference set. This image will anchor model identity for product image generation.",
+      );
+    } catch {
+      setReferenceError("We could not set that primary reference image right now.");
+    } finally {
+      setActivePrimaryAssetId(null);
     }
   }
 
@@ -772,6 +791,28 @@ export function PersonasPanel() {
                                 value={asset.status === "approved" ? "Approved" : "Generated"}
                               />
                             </div>
+                            {selectedPersona.primaryReferenceImageUrl === asset.imageUrl ? (
+                              <div className="mt-2 inline-flex items-center rounded-full border border-success/20 bg-success/10 px-2.5 py-1 text-xs font-semibold text-success">
+                                Primary reference
+                              </div>
+                            ) : null}
+                            <button
+                              className="mt-3 inline-flex items-center justify-center rounded-full border border-border/80 bg-white px-3 py-1.5 text-xs font-semibold text-foreground transition hover:border-accent/40 hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+                              disabled={
+                                activePrimaryAssetId !== null ||
+                                selectedPersona.primaryReferenceImageUrl === asset.imageUrl
+                              }
+                              onClick={() => {
+                                void handleSetPrimaryAsset(selectedPersona, asset);
+                              }}
+                              type="button"
+                            >
+                              {activePrimaryAssetId === asset.id
+                                ? "Setting..."
+                                : selectedPersona.primaryReferenceImageUrl === asset.imageUrl
+                                  ? "Primary set"
+                                  : "Set as Primary"}
+                            </button>
                             <button
                               className="mt-3 inline-flex items-center justify-center rounded-full border border-border/80 bg-white px-3 py-1.5 text-xs font-semibold text-foreground transition hover:border-accent/40 hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
                               disabled={activeApprovalAssetId !== null}

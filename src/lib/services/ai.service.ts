@@ -137,7 +137,7 @@ function buildCaptionIdea(input: ContentIdeaGeneratorInput, index: number) {
 
 export async function generateContentIdeas(
   input: ContentIdeaGeneratorInput,
-  count = 5,
+  count = 1,
 ): Promise<GeneratedContentIdeaCard[]> {
   await new Promise((resolve) => {
     setTimeout(resolve, 350);

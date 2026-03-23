@@ -13,7 +13,6 @@ import {
 } from "@/lib/services/mock-persistence";
 import type {
   ContentIdea,
-  ContentIdeaGenerationResult,
   ContentIdeaType,
   EnqueueJobResponse,
   ContentIdeaGeneratorInput,
@@ -21,8 +20,6 @@ import type {
   ContentPlatform,
   VideoReviewItem,
 } from "@/types/studio";
-
-export type { ContentIdeaGenerationResult };
 
 const VIDEO_REVIEW_KEY = "vb-jewelry-ai.service.video-review";
 
@@ -65,6 +62,50 @@ async function requestJson<T>(input: string, init?: RequestInit): Promise<T | nu
   }
 }
 
+interface ApiResult<T> {
+  data: T | null;
+  error?: string;
+}
+
+async function requestJsonWithError<T>(
+  input: string,
+  init?: RequestInit,
+): Promise<ApiResult<T>> {
+  try {
+    const response = await fetch(input, {
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        ...(init?.headers ?? {}),
+      },
+      cache: "no-store",
+    });
+
+    const payload = (await response.json().catch(() => null)) as
+      | (T & { message?: string })
+      | null;
+
+    if (!response.ok) {
+      return {
+        data: null,
+        error:
+          payload && typeof payload.message === "string"
+            ? payload.message
+            : "Request failed.",
+      };
+    }
+
+    return {
+      data: payload as T,
+    };
+  } catch {
+    return {
+      data: null,
+      error: "Request failed.",
+    };
+  }
+}
+
 interface IdeaActionResponse {
   idea: ContentIdea;
   source?: "openai" | "mock_fallback";
@@ -73,7 +114,7 @@ interface IdeaActionResponse {
 
 export async function listContentIdeas(): Promise<ContentIdea[]> {
   const fromApi = await requestJson<ContentIdea[]>("/api/content-ideas");
-  return fromApi ?? defaultContentIdeas;
+  return fromApi ?? [];
 }
 
 export async function generateIdeas(
@@ -89,7 +130,7 @@ export async function generateIdeas(
         platform: input.platform,
         mood: input.mood,
         contentType: input.contentType,
-        count: 5,
+        count: 1,
       }),
     },
   );
@@ -156,6 +197,78 @@ export async function generateVisualPlanForIdea(
       action: "generate_visual_plan",
     }),
   });
+}
+
+interface ProductImageIdeaActionResponse {
+  idea: ContentIdea;
+  message?: string;
+}
+
+export async function generateProductImagesForIdea(
+  ideaId: string,
+  count = 3,
+): Promise<{ job: EnqueueJobResponse | null; error?: string }> {
+  const result = await requestJsonWithError<EnqueueJobResponse>(
+    `/api/content-ideas/${ideaId}/product-images`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        count,
+      }),
+    },
+  );
+
+  return {
+    job: result.data,
+    error: result.error,
+  };
+}
+
+export async function updateProductImageAsset(
+  ideaId: string,
+  assetId: string,
+  action: "approve" | "discard" | "regenerate",
+): Promise<{
+  idea: ContentIdea | null;
+  job: EnqueueJobResponse | null;
+  message?: string;
+  error?: string;
+}> {
+  if (action === "regenerate") {
+    const queued = await requestJsonWithError<EnqueueJobResponse>(
+      `/api/content-ideas/${ideaId}/product-images/${assetId}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({
+          action,
+        }),
+      },
+    );
+
+    return {
+      idea: null,
+      job: queued.data,
+      message: queued.data?.message,
+      error: queued.error,
+    };
+  }
+
+  const updated = await requestJsonWithError<ProductImageIdeaActionResponse>(
+    `/api/content-ideas/${ideaId}/product-images/${assetId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({
+        action,
+      }),
+    },
+  );
+
+  return {
+    idea: updated.data?.idea ?? null,
+    job: null,
+    message: updated.data?.message,
+    error: updated.error,
+  };
 }
 
 export async function listVideoReviewQueue(): Promise<VideoReviewItem[]> {

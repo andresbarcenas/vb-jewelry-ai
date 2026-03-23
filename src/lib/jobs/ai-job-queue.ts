@@ -222,10 +222,13 @@ export async function markAiJobFailed(
   job: AiJobRecord,
   errorMessage: string,
   metadata?: Record<string, unknown>,
+  options?: {
+    disableRetry?: boolean;
+  },
 ) {
   const redis = ensureRedisClient();
   const config = getAiQueueConfig();
-  const canRetry = job.attempts < job.maxAttempts;
+  const canRetry = !options?.disableRetry && job.attempts < job.maxAttempts;
 
   if (canRetry) {
     const retryDelay = config.backoffMs * Math.max(1, job.attempts);

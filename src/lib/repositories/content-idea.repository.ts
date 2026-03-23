@@ -7,6 +7,10 @@ import { getPersonaById } from "@/lib/repositories/persona.repository";
 import { getProductById, listProducts as listAllProducts } from "@/lib/repositories/product.repository";
 import { generateStructuredContentIdeas } from "@/lib/services/content-generation.service";
 import {
+  generateProductImage,
+  ProductImageGenerationError,
+} from "@/lib/services/product-image-generation.service";
+import {
   contentMoodOptions,
   contentPlatformOptions,
   contentTypeOptions,
@@ -16,6 +20,8 @@ import type {
   ContentIdeaGenerationResult,
   ContentIdeaGeneratorInput,
   ContentIdeaPriority,
+  ProductImageAsset,
+  ProductImageAssetStatus,
   ContentIdeaStatus,
   ContentIdeaType,
   ContentMood,
@@ -24,6 +30,19 @@ import type {
   VideoAssetStatus,
   VisualPlan,
 } from "@/types/studio";
+
+const contentIdeaInclude = {
+  videoAssets: {
+    orderBy: {
+      updatedAt: "desc" as const,
+    },
+  },
+  productImageAssets: {
+    orderBy: {
+      updatedAt: "desc" as const,
+    },
+  },
+};
 
 function normalizeStatus(value: unknown): ContentIdeaStatus {
   if (
@@ -82,6 +101,14 @@ function normalizeVideoAssetStatus(value: unknown): VideoAssetStatus {
   }
 
   return "draft";
+}
+
+function normalizeProductImageAssetStatus(value: unknown): ProductImageAssetStatus {
+  if (value === "generated" || value === "approved" || value === "discarded") {
+    return value;
+  }
+
+  return "generated";
 }
 
 function buildIdeaId(personaId: string, productId: string, index: number) {
@@ -219,6 +246,23 @@ function mapRecordToIdea(record: {
     createdAt: Date;
     updatedAt: Date;
   }>;
+  productImageAssets: Array<{
+    id: string;
+    personaId: string;
+    productId: string;
+    contentIdeaId: string;
+    imageUrl: string;
+    status: string;
+    provider: string;
+    promptUsed: string;
+    notes: string | null;
+    matchScore: number | null;
+    matchStatus: string | null;
+    qaNotes: string[];
+    attempt: number | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }>;
   createdAt: Date;
   updatedAt: Date;
 }): ContentIdea {
@@ -230,6 +274,27 @@ function mapRecordToIdea(record: {
     thumbnailUrl: asset.thumbnailUrl ?? undefined,
     generationNotes: asset.generationNotes,
     provider: asset.provider,
+    createdAt: asset.createdAt.toISOString(),
+    updatedAt: asset.updatedAt.toISOString(),
+  }));
+
+  const productImageAssets: ProductImageAsset[] = record.productImageAssets.map((asset) => ({
+    id: asset.id,
+    personaId: asset.personaId,
+    productId: asset.productId,
+    contentIdeaId: asset.contentIdeaId,
+    imageUrl: asset.imageUrl,
+    status: normalizeProductImageAssetStatus(asset.status),
+    provider: asset.provider,
+    promptUsed: asset.promptUsed,
+    notes: asset.notes ?? undefined,
+    matchScore: asset.matchScore ?? undefined,
+    matchStatus:
+      asset.matchStatus === "pass" || asset.matchStatus === "fail"
+        ? asset.matchStatus
+        : undefined,
+    qaNotes: asset.qaNotes,
+    attempt: asset.attempt ?? undefined,
     createdAt: asset.createdAt.toISOString(),
     updatedAt: asset.updatedAt.toISOString(),
   }));
@@ -256,6 +321,7 @@ function mapRecordToIdea(record: {
     priority: normalizePriority(record.priority),
     autoSaved: record.autoSaved,
     videoAssets,
+    productImageAssets,
     targetLaunch: record.targetLaunch,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),
@@ -265,21 +331,23 @@ function mapRecordToIdea(record: {
 function mapDefaultIdeaToCreateInput(
   idea: ContentIdea,
   productIdByName: Map<string, string>,
+  fallbackProduct: { id: string; productName: string } | null,
 ) {
-  const productName = idea.products[0] ?? "";
+  const mappedProductName = idea.products[0] ?? fallbackProduct?.productName ?? "";
+  const mappedProductId = productIdByName.get(mappedProductName) ?? fallbackProduct?.id ?? null;
 
   return {
     id: idea.id,
     title: idea.title,
     personaId: idea.personaId,
     personaName: idea.personaName,
-    productId: productIdByName.get(productName) ?? null,
-    productName: productName || null,
+    productId: mappedProductId,
+    productName: mappedProductName || null,
     platform: "Instagram Reels",
     mood: null,
     contentType: null,
     status: idea.status,
-    products: idea.products,
+    products: mappedProductName ? [mappedProductName] : idea.products,
     theme: idea.theme,
     concept: idea.concept,
     visualDirection: idea.visualDirection ?? null,
@@ -346,9 +414,17 @@ async function seedDefaultIdeasIfEmpty() {
 
   const products = await listAllProducts();
   const productIdByName = new Map(products.map((item) => [item.productName, item.id]));
+  const fallbackProduct = products[0]
+    ? {
+        id: products[0].id,
+        productName: products[0].productName,
+      }
+    : null;
 
   await prisma.contentIdea.createMany({
-    data: defaultContentIdeas.map((idea) => mapDefaultIdeaToCreateInput(idea, productIdByName)),
+    data: defaultContentIdeas.map((idea) =>
+      mapDefaultIdeaToCreateInput(idea, productIdByName, fallbackProduct),
+    ),
   });
 
   await prisma.videoAsset.createMany({
@@ -373,13 +449,7 @@ export async function listContentIdeas(): Promise<ContentIdea[]> {
   await ensureVideoAssetsForIdeas(ideaIds);
 
   const records = await prisma.contentIdea.findMany({
-    include: {
-      videoAssets: {
-        orderBy: {
-          updatedAt: "desc",
-        },
-      },
-    },
+    include: contentIdeaInclude,
     orderBy: {
       updatedAt: "desc",
     },
@@ -390,7 +460,7 @@ export async function listContentIdeas(): Promise<ContentIdea[]> {
 
 export async function generateAndSaveContentIdeas(
   input: ContentIdeaGeneratorInput,
-  count = 5,
+  count = 1,
 ): Promise<ContentIdeaGenerationResult> {
   const brand = await getBrandProfile();
 
@@ -451,13 +521,7 @@ export async function generateAndSaveContentIdeas(
         in: records.map((item) => item.id),
       },
     },
-    include: {
-      videoAssets: {
-        orderBy: {
-          updatedAt: "desc",
-        },
-      },
-    },
+    include: contentIdeaInclude,
     orderBy: {
       createdAt: "desc",
     },
@@ -503,13 +567,7 @@ export async function updateContentIdeaStatus(
     where: {
       id: ideaId,
     },
-    include: {
-      videoAssets: {
-        orderBy: {
-          updatedAt: "desc",
-        },
-      },
-    },
+    include: contentIdeaInclude,
   });
 
   if (record && status === "Ready for Review") {
@@ -536,13 +594,7 @@ export async function generateVisualPlanForIdea(
     where: {
       id: ideaId,
     },
-    include: {
-      videoAssets: {
-        orderBy: {
-          updatedAt: "desc",
-        },
-      },
-    },
+    include: contentIdeaInclude,
   });
 
   if (!existing) {
@@ -604,13 +656,7 @@ export async function generateVisualPlanForIdea(
     where: {
       id: ideaId,
     },
-    include: {
-      videoAssets: {
-        orderBy: {
-          updatedAt: "desc",
-        },
-      },
-    },
+    include: contentIdeaInclude,
   });
 
   if (!refreshed) {
@@ -638,13 +684,7 @@ export async function regenerateContentIdea(
     where: {
       id: ideaId,
     },
-    include: {
-      videoAssets: {
-        orderBy: {
-          updatedAt: "desc",
-        },
-      },
-    },
+    include: contentIdeaInclude,
   });
 
   if (!existing) {
@@ -715,13 +755,7 @@ export async function regenerateContentIdea(
       visualPlan: null,
       targetLaunch: buildTargetLaunchDate(),
     },
-    include: {
-      videoAssets: {
-        orderBy: {
-          updatedAt: "desc",
-        },
-      },
-    },
+    include: contentIdeaInclude,
   });
 
   await prisma.videoAsset.upsert({
@@ -746,13 +780,7 @@ export async function regenerateContentIdea(
     where: {
       id: ideaId,
     },
-    include: {
-      videoAssets: {
-        orderBy: {
-          updatedAt: "desc",
-        },
-      },
-    },
+    include: contentIdeaInclude,
   });
 
   if (!refreshed) {
@@ -764,4 +792,176 @@ export async function regenerateContentIdea(
     source: generation.source,
     message: generation.message,
   };
+}
+
+export async function getContentIdeaById(ideaId: string): Promise<ContentIdea | null> {
+  const record = await prisma.contentIdea.findUnique({
+    where: {
+      id: ideaId,
+    },
+    include: contentIdeaInclude,
+  });
+
+  return record ? mapRecordToIdea(record) : null;
+}
+
+export async function generateProductImagesForIdea(
+  ideaId: string,
+  count = 3,
+  replaceAssetId?: string,
+): Promise<{
+  idea: ContentIdea;
+  generatedCount: number;
+  openAiCount: number;
+  fallbackCount: number;
+}> {
+  const existing = await prisma.contentIdea.findUnique({
+    where: {
+      id: ideaId,
+    },
+    include: contentIdeaInclude,
+  });
+
+  if (!existing) {
+    throw new Error("Content idea was not found.");
+  }
+
+  const visualPlan = parseVisualPlan(existing.visualPlan);
+  if (!visualPlan) {
+    throw new Error("Generate a visual plan first, then create product images.");
+  }
+
+  if (!existing.productId) {
+    throw new Error("This idea is missing a product. Please regenerate from a product-linked idea.");
+  }
+
+  const [persona, product] = await Promise.all([
+    getPersonaById(existing.personaId),
+    getProductById(existing.productId),
+  ]);
+
+  if (!persona || !product) {
+    throw new Error("Persona or product could not be found for this idea.");
+  }
+
+  if (!persona.primaryReferenceImageUrl) {
+    throw new Error("Set a primary persona reference image before generating product images.");
+  }
+
+  if (!product.imageDataUrl) {
+    throw new Error(
+      "Please upload a clear product reference image in Product Library before generating product-on-person images.",
+    );
+  }
+
+  let generated;
+  try {
+    generated = await generateProductImage({
+      persona,
+      product,
+      contentIdea: mapRecordToIdea(existing),
+      visualPlan,
+      count,
+    });
+  } catch (error) {
+    if (error instanceof ProductImageGenerationError) {
+      throw error;
+    }
+
+    throw error;
+  }
+
+  if (replaceAssetId) {
+    await prisma.productImageAsset.updateMany({
+      where: {
+        id: replaceAssetId,
+        contentIdeaId: ideaId,
+      },
+      data: {
+        status: "discarded",
+      },
+    });
+  }
+
+  await prisma.productImageAsset.createMany({
+    data: generated.map((asset) => ({
+      personaId: persona.id,
+      productId: product.id,
+      contentIdeaId: ideaId,
+      imageUrl: asset.imageUrl,
+      status: "generated",
+      provider: asset.provider,
+      promptUsed: asset.promptUsed,
+      notes: asset.notes ?? null,
+      matchScore: asset.matchScore,
+      matchStatus: asset.matchStatus,
+      qaNotes: asset.qaNotes,
+      attempt: asset.attempt,
+    })),
+  });
+
+  const refreshed = await prisma.contentIdea.findUnique({
+    where: {
+      id: ideaId,
+    },
+    include: contentIdeaInclude,
+  });
+
+  if (!refreshed) {
+    throw new Error("Idea was updated but could not be reloaded.");
+  }
+
+  const openAiCount = generated.filter((item) => item.provider === "openai").length;
+  const fallbackCount = generated.length - openAiCount;
+
+  logEvent({
+    type: "content_generated",
+    domain: "content",
+    action: "save-product-images",
+    message: `Saved ${generated.length} generated product images.`,
+    metadata: {
+      ideaId,
+      personaId: persona.id,
+      productId: product.id,
+      openAiCount,
+      fallbackCount,
+      replaceAssetId: replaceAssetId ?? null,
+    },
+  });
+
+  return {
+    idea: mapRecordToIdea(refreshed),
+    generatedCount: generated.length,
+    openAiCount,
+    fallbackCount,
+  };
+}
+
+export async function updateProductImageAssetStatus(
+  contentIdeaId: string,
+  assetId: string,
+  status: ProductImageAssetStatus,
+): Promise<ContentIdea | null> {
+  const updated = await prisma.productImageAsset.updateMany({
+    where: {
+      id: assetId,
+      contentIdeaId,
+    },
+    data: {
+      status,
+    },
+  });
+
+  if (updated.count === 0) {
+    return null;
+  }
+
+  const refreshed = await prisma.contentIdea.findUnique({
+    where: {
+      id: contentIdeaId,
+    },
+    include: contentIdeaInclude,
+  });
+
+  return refreshed ? mapRecordToIdea(refreshed) : null;
 }

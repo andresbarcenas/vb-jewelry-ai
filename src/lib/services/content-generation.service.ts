@@ -152,10 +152,11 @@ const SPAM_CTA_PATTERNS = [
 
 function normalizeCount(requestedCount: number) {
   if (Number.isNaN(requestedCount)) {
-    return 5;
+    return 1;
   }
 
-  return Math.min(5, Math.max(3, Math.round(requestedCount)));
+  // We intentionally keep content generation to one idea per request.
+  return 1;
 }
 
 function normalizePriority(

@@ -14,6 +14,7 @@ import type {
   ContentIdeaType,
   ContentMood,
   ContentPlatform,
+  ProductImageFailureReason,
   VideoAssetStatus,
 } from "@/types/studio";
 
@@ -44,11 +45,13 @@ export function ContentIdeasPanel() {
   const {
     contentIdeas,
     generateIdeas,
+    generateProductImagesForIdea,
     saveContentIdea,
     generateVisualPlanForIdea,
     markContentIdeaReadyForReview,
     archiveContentIdea,
     regenerateContentIdea,
+    updateProductImageAsset,
     generationOptions,
     refreshStudioData,
   } = useStudioContent();
@@ -61,10 +64,18 @@ export function ContentIdeasPanel() {
   const [activeGenerationJobId, setActiveGenerationJobId] = useState<string | null>(null);
   const [activeIdeaId, setActiveIdeaId] = useState<string | null>(null);
   const [activeIdeaAction, setActiveIdeaAction] = useState("");
+  const [activeProductImageJobId, setActiveProductImageJobId] = useState<string | null>(null);
+  const [activeProductImageIdeaId, setActiveProductImageIdeaId] = useState<string | null>(null);
+  const [activeProductImageAssetId, setActiveProductImageAssetId] = useState<string | null>(
+    null,
+  );
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [recentIdeaIds, setRecentIdeaIds] = useState<string[]>([]);
   const [expandedVisualPlanIdeaIds, setExpandedVisualPlanIdeaIds] = useState<string[]>([]);
+  const [productImageFeedbackByIdea, setProductImageFeedbackByIdea] = useState<
+    Record<string, string>
+  >({});
 
   const platformOptions = generationOptions.platforms;
   const moodOptions = generationOptions.moods;
@@ -213,7 +224,13 @@ export function ContentIdeasPanel() {
 
   async function handleIdeaAction(
     ideaId: string,
-    action: "save" | "review" | "archive" | "regenerate" | "visual-plan",
+    action:
+      | "save"
+      | "review"
+      | "archive"
+      | "regenerate"
+      | "visual-plan"
+      | "product-images",
   ) {
     setError("");
     setNotice("");
@@ -257,6 +274,34 @@ export function ContentIdeasPanel() {
           setError("We could not generate a visual plan for this idea.");
         }
       }
+
+      if (action === "product-images") {
+        setProductImageFeedbackByIdea((current) => {
+          const next = { ...current };
+          delete next[ideaId];
+          return next;
+        });
+
+        const queued = await generateProductImagesForIdea(ideaId, 3);
+
+        if (queued.error) {
+          setError(queued.error);
+          setProductImageFeedbackByIdea((current) => ({
+            ...current,
+            [ideaId]: queued.error ?? "Product image generation could not be queued.",
+          }));
+        } else if (queued.job?.jobId) {
+          setActiveProductImageJobId(queued.job.jobId);
+          setActiveProductImageIdeaId(ideaId);
+          setNotice("Product images are being prepared and will be available soon.");
+        } else {
+          setError("We could not queue product image generation right now.");
+          setProductImageFeedbackByIdea((current) => ({
+            ...current,
+            [ideaId]: "We could not queue product image generation right now.",
+          }));
+        }
+      }
     } catch {
       setError("We could not complete that action. Please try again.");
     } finally {
@@ -271,6 +316,133 @@ export function ContentIdeasPanel() {
         ? current.filter((entry) => entry !== ideaId)
         : [...current, ideaId],
     );
+  }
+
+  const refreshProductImageJobStatus = useCallback(
+    async (jobId: string, ideaId: string | null) => {
+    const status = await getJobStatus(jobId);
+
+    if (!status) {
+      setError("We could not check product image status right now. Please try again.");
+      return;
+    }
+
+    if (status.status === "completed") {
+      await refreshStudioData();
+      setActiveProductImageJobId(null);
+      setActiveProductImageIdeaId(null);
+      if (ideaId) {
+        setProductImageFeedbackByIdea((current) => {
+          const next = { ...current };
+          delete next[ideaId];
+          return next;
+        });
+      }
+      setNotice(status.message || "Product images are ready.");
+      return;
+    }
+
+    if (status.status === "failed") {
+      setActiveProductImageJobId(null);
+      setActiveProductImageIdeaId(null);
+      const reasonCode = (() => {
+        const raw = status.metadata?.reasonCode;
+        if (
+          raw === "persona_reference_missing" ||
+          raw === "product_reference_missing" ||
+          raw === "product_mismatch_or_low_visibility"
+        ) {
+          return raw as ProductImageFailureReason;
+        }
+
+        return null;
+      })();
+
+      let failureMessage =
+        status.error || status.message || "Product image generation failed.";
+
+      if (reasonCode === "product_mismatch_or_low_visibility") {
+        failureMessage =
+          "We couldn’t confirm product accuracy on this run. Product accuracy mode is on, so this image was not saved. Please click Regenerate to try again.";
+      } else if (reasonCode === "product_reference_missing") {
+        failureMessage =
+          "Please upload a clear product photo in Product Library before generating product images.";
+      } else if (reasonCode === "persona_reference_missing") {
+        failureMessage =
+          "Please set a primary persona reference image before generating product images.";
+      }
+
+      if (ideaId) {
+        setProductImageFeedbackByIdea((current) => ({
+          ...current,
+          [ideaId]: failureMessage,
+        }));
+      }
+
+      setError(failureMessage);
+      return;
+    }
+
+    setNotice("Product images are being prepared and will be available soon.");
+    },
+    [refreshStudioData],
+  );
+
+  useEffect(() => {
+    if (!activeProductImageJobId) {
+      return;
+    }
+
+    void refreshProductImageJobStatus(activeProductImageJobId, activeProductImageIdeaId);
+
+    const interval = window.setInterval(() => {
+      void refreshProductImageJobStatus(activeProductImageJobId, activeProductImageIdeaId);
+    }, 5000);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [activeProductImageIdeaId, activeProductImageJobId, refreshProductImageJobStatus]);
+
+  async function handleProductImageAssetAction(
+    ideaId: string,
+    assetId: string,
+    action: "approve" | "discard" | "regenerate",
+  ) {
+    setError("");
+    setNotice("");
+    setActiveProductImageAssetId(assetId);
+
+    try {
+      const result = await updateProductImageAsset(ideaId, assetId, action);
+
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+
+      if (result.job?.jobId) {
+        setProductImageFeedbackByIdea((current) => {
+          const next = { ...current };
+          delete next[ideaId];
+          return next;
+        });
+        setActiveProductImageJobId(result.job.jobId);
+        setActiveProductImageIdeaId(ideaId);
+        setNotice("Product image regeneration is in progress and will be available soon.");
+        return;
+      }
+
+      setNotice(
+        action === "approve"
+          ? "Product image approved."
+          : "Product image discarded.",
+      );
+    } catch {
+      setError("We could not update that product image right now.");
+    } finally {
+      setActiveProductImageAssetId(null);
+    }
   }
 
   function formatVideoStatus(status: VideoAssetStatus) {
@@ -552,6 +724,103 @@ export function ContentIdeasPanel() {
                     </p>
                   </div>
 
+                  <div className="rounded-[22px] border border-border/80 bg-white/80 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                      Product images
+                    </p>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Generate product-on-person stills using the visual plan and the persona&apos;s primary reference image.
+                    </p>
+                    <p className="mt-2 inline-flex items-center rounded-full border border-success/20 bg-success/10 px-2.5 py-1 text-xs font-semibold text-success">
+                      Product accuracy mode enabled
+                    </p>
+                    {productImageFeedbackByIdea[idea.id] ? (
+                      <div className="mt-3 rounded-xl border border-warning/25 bg-warning/10 px-3 py-2 text-sm text-warning">
+                        {productImageFeedbackByIdea[idea.id]}
+                      </div>
+                    ) : null}
+                    {!idea.visualPlan ? (
+                      <p className="mt-2 text-sm text-warning">
+                        Generate a visual plan first before creating product images.
+                      </p>
+                    ) : null}
+                    {(() => {
+                      const ideaPersona = personas.find((persona) => persona.id === idea.personaId);
+                      if (ideaPersona && !ideaPersona.primaryReferenceImageUrl) {
+                        return (
+                          <p className="mt-2 text-sm text-warning">
+                            Set a primary reference image in Personas first to keep this model look consistent.
+                          </p>
+                        );
+                      }
+
+                      return null;
+                    })()}
+                    {idea.productImageAssets && idea.productImageAssets.length > 0 ? (
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        {idea.productImageAssets
+                          .filter((asset) => asset.status !== "discarded")
+                          .map((asset) => (
+                            <div
+                              className="rounded-[18px] border border-border/80 bg-white p-3"
+                              key={asset.id}
+                            >
+                              <div className="overflow-hidden rounded-[14px] border border-border/70 bg-accent-soft/20">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  alt={`${idea.title} generated product visual`}
+                                  className="h-40 w-full object-cover"
+                                  src={asset.imageUrl}
+                                />
+                              </div>
+                              <div className="mt-3 flex items-center justify-between gap-2">
+                                <StatusBadge value={asset.status === "approved" ? "Approved" : "Generated"} />
+                                <span className="text-xs text-muted-foreground">
+                                  Provider: {asset.provider}
+                                </span>
+                              </div>
+                              <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                                <button
+                                  className="inline-flex items-center justify-center rounded-full border border-border/80 bg-white px-3 py-1.5 text-xs font-semibold text-foreground transition hover:border-accent/40 hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+                                  disabled={activeProductImageAssetId !== null}
+                                  onClick={() => {
+                                    void handleProductImageAssetAction(idea.id, asset.id, "approve");
+                                  }}
+                                  type="button"
+                                >
+                                  {activeProductImageAssetId === asset.id ? "Saving..." : "Approve"}
+                                </button>
+                                <button
+                                  className="inline-flex items-center justify-center rounded-full border border-border/80 bg-white px-3 py-1.5 text-xs font-semibold text-foreground transition hover:border-accent/40 hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+                                  disabled={activeProductImageAssetId !== null}
+                                  onClick={() => {
+                                    void handleProductImageAssetAction(idea.id, asset.id, "regenerate");
+                                  }}
+                                  type="button"
+                                >
+                                  {activeProductImageAssetId === asset.id ? "Queuing..." : "Regenerate"}
+                                </button>
+                                <button
+                                  className="inline-flex items-center justify-center rounded-full border border-danger/20 bg-danger/10 px-3 py-1.5 text-xs font-semibold text-danger transition hover:bg-danger/15 disabled:cursor-not-allowed disabled:opacity-50"
+                                  disabled={activeProductImageAssetId !== null}
+                                  onClick={() => {
+                                    void handleProductImageAssetAction(idea.id, asset.id, "discard");
+                                  }}
+                                  type="button"
+                                >
+                                  {activeProductImageAssetId === asset.id ? "Saving..." : "Discard"}
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-sm text-muted-foreground">
+                        No product images yet for this idea.
+                      </p>
+                    )}
+                  </div>
+
                   {idea.visualPlan && expandedVisualPlanIdeaIds.includes(idea.id) ? (
                     <div className="space-y-3 rounded-[22px] border border-border/80 bg-white/90 p-4">
                       <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
@@ -683,6 +952,37 @@ export function ContentIdeasPanel() {
                           ? "Regenerate Visual Plan"
                           : "Generate Visual Plan"}
                     </button>
+
+                    <button
+                      className="inline-flex items-center justify-center rounded-full border border-border/80 bg-white/85 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-55"
+                      disabled={
+                        activeIdeaId === idea.id ||
+                        activeProductImageJobId !== null ||
+                        idea.status === "Archived"
+                      }
+                      onClick={() => void handleIdeaAction(idea.id, "product-images")}
+                      type="button"
+                    >
+                      {activeIdeaId === idea.id && activeIdeaAction === "product-images"
+                        ? "Queuing..."
+                        : activeProductImageJobId && activeProductImageIdeaId === idea.id
+                          ? "Preparing Images..."
+                          : "Generate Product Images"}
+                    </button>
+                    {activeProductImageJobId && activeProductImageIdeaId === idea.id ? (
+                      <button
+                        className="inline-flex items-center justify-center rounded-full border border-border/80 bg-white/85 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-white"
+                        onClick={() =>
+                          void refreshProductImageJobStatus(
+                            activeProductImageJobId,
+                            activeProductImageIdeaId,
+                          )
+                        }
+                        type="button"
+                      >
+                        Refresh image status
+                      </button>
+                    ) : null}
 
                     {idea.visualPlan ? (
                       <button

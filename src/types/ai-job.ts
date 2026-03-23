@@ -3,9 +3,15 @@ import type { ContentIdeaType, ContentMood, ContentPlatform } from "@/types/cont
 export type AiJobType =
   | "content_generation"
   | "content_regeneration"
-  | "persona_reference_pack";
+  | "persona_reference_pack"
+  | "product_image_generation";
 
 export type AiJobStatus = "queued" | "processing" | "completed" | "failed";
+
+export type ProductImageFailureReason =
+  | "persona_reference_missing"
+  | "product_reference_missing"
+  | "product_mismatch_or_low_visibility";
 
 export interface ContentGenerationJobPayload {
   personaId: string;
@@ -24,10 +30,17 @@ export interface ContentRegenerationJobPayload {
   ideaId: string;
 }
 
+export interface ProductImageGenerationJobPayload {
+  contentIdeaId: string;
+  count: number;
+  replaceAssetId?: string;
+}
+
 export type AiJobPayloadMap = {
   content_generation: ContentGenerationJobPayload;
   content_regeneration: ContentRegenerationJobPayload;
   persona_reference_pack: PersonaReferencePackJobPayload;
+  product_image_generation: ProductImageGenerationJobPayload;
 };
 
 export type AiJobPayload = AiJobPayloadMap[AiJobType];

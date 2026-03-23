@@ -48,6 +48,7 @@ export interface AiPersonaProfile {
   promptStarter: string;
   recommendedFor: PersonaRecommendedFor;
   status: PersonaStatus;
+  primaryReferenceImageUrl?: string;
   referenceAssets?: PersonaAsset[];
 }
 

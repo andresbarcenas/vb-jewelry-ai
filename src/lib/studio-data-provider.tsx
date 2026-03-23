@@ -19,6 +19,7 @@ import {
   archiveContentIdea,
   approveReview,
   generateIdeas,
+  generateProductImagesForIdea,
   generateVisualPlanForIdea,
   getGenerationOptions,
   listContentIdeas,
@@ -28,6 +29,7 @@ import {
   rejectReview,
   requestVideoGeneration,
   saveContentIdea,
+  updateProductImageAsset,
   type ContentGenerationOptions,
 } from "@/lib/services/content.service";
 import {
@@ -36,6 +38,7 @@ import {
   generatePersonaReferencePack,
   listPersonas,
   resetPersonas,
+  setPersonaPrimaryReferenceAsset,
   setPersonaReferenceAssetApproval,
   updatePersona,
 } from "@/lib/services/persona.service";
@@ -101,6 +104,10 @@ interface StudioDataContextValue {
     assetId: string,
     approved: boolean,
   ) => Promise<void>;
+  setPersonaPrimaryReferenceAsset: (
+    personaId: string,
+    assetId: string,
+  ) => Promise<void>;
   createProduct: (product: ProductLibraryItem) => Promise<void>;
   updateProduct: (product: ProductLibraryItem) => Promise<void>;
   deleteProduct: (productId: string) => Promise<void>;
@@ -114,6 +121,15 @@ interface StudioDataContextValue {
   sendContentIdeaToReview: (ideaId: string) => Promise<void>;
   archiveContentIdea: (ideaId: string) => Promise<void>;
   regenerateContentIdea: (ideaId: string) => Promise<EnqueueJobResponse | null>;
+  generateProductImagesForIdea: (
+    ideaId: string,
+    count?: number,
+  ) => Promise<{ job: EnqueueJobResponse | null; error?: string }>;
+  updateProductImageAsset: (
+    ideaId: string,
+    assetId: string,
+    action: "approve" | "discard" | "regenerate",
+  ) => Promise<{ job: EnqueueJobResponse | null; error?: string }>;
   approveReview: (reviewId: string, reviewer: string, notes: string) => Promise<void>;
   rejectReview: (reviewId: string, reviewer: string, notes: string) => Promise<void>;
   requestVideoGeneration: (reviewId: string) => Promise<unknown>;
@@ -305,6 +321,14 @@ export function StudioDataProvider({ children }: StudioDataProviderProps) {
     [],
   );
 
+  const setPersonaPrimaryReferenceAssetAction = useCallback(
+    async (personaId: string, assetId: string) => {
+      const updated = await setPersonaPrimaryReferenceAsset(personaId, assetId);
+      setPersonasState(updated);
+    },
+    [],
+  );
+
   const createProductAction = useCallback(async (product: ProductLibraryItem) => {
     const updated = await createProduct(product);
     setProductsState(updated);
@@ -401,6 +425,31 @@ export function StudioDataProvider({ children }: StudioDataProviderProps) {
     [],
   );
 
+  const generateProductImagesForIdeaAction = useCallback(
+    async (ideaId: string, count = 3) => {
+      return generateProductImagesForIdea(ideaId, count);
+    },
+    [],
+  );
+
+  const updateProductImageAssetAction = useCallback(
+    async (ideaId: string, assetId: string, action: "approve" | "discard" | "regenerate") => {
+      const result = await updateProductImageAsset(ideaId, assetId, action);
+
+      if (result.idea) {
+        setContentIdeasState((current) =>
+          current.map((item) => (item.id === result.idea?.id ? result.idea : item)),
+        );
+      }
+
+      return {
+        job: result.job,
+        error: result.error,
+      };
+    },
+    [],
+  );
+
   const approveReviewAction = useCallback(
     async (reviewId: string, reviewer: string, notes: string) => {
       const updated = await approveReview(reviewId, reviewer, notes);
@@ -473,6 +522,7 @@ export function StudioDataProvider({ children }: StudioDataProviderProps) {
       resetPersonas: resetPersonasAction,
       generatePersonaReferencePack: generatePersonaReferencePackAction,
       setPersonaReferenceAssetApproval: setPersonaReferenceAssetApprovalAction,
+      setPersonaPrimaryReferenceAsset: setPersonaPrimaryReferenceAssetAction,
       createProduct: createProductAction,
       updateProduct: updateProductAction,
       deleteProduct: deleteProductAction,
@@ -484,6 +534,8 @@ export function StudioDataProvider({ children }: StudioDataProviderProps) {
       sendContentIdeaToReview: sendContentIdeaToReviewAction,
       archiveContentIdea: archiveContentIdeaAction,
       regenerateContentIdea: regenerateContentIdeaAction,
+      generateProductImagesForIdea: generateProductImagesForIdeaAction,
+      updateProductImageAsset: updateProductImageAssetAction,
       approveReview: approveReviewAction,
       rejectReview: rejectReviewAction,
       requestVideoGeneration: requestVideoGenerationAction,
@@ -514,6 +566,7 @@ export function StudioDataProvider({ children }: StudioDataProviderProps) {
       resetPersonasAction,
       generatePersonaReferencePackAction,
       setPersonaReferenceAssetApprovalAction,
+      setPersonaPrimaryReferenceAssetAction,
       createProductAction,
       updateProductAction,
       deleteProductAction,
@@ -525,6 +578,8 @@ export function StudioDataProvider({ children }: StudioDataProviderProps) {
       sendContentIdeaToReviewAction,
       archiveContentIdeaAction,
       regenerateContentIdeaAction,
+      generateProductImagesForIdeaAction,
+      updateProductImageAssetAction,
       approveReviewAction,
       rejectReviewAction,
       requestVideoGenerationAction,
@@ -564,6 +619,7 @@ export function useStudioPersonas() {
     resetPersonas: context.resetPersonas,
     generatePersonaReferencePack: context.generatePersonaReferencePack,
     setPersonaReferenceAssetApproval: context.setPersonaReferenceAssetApproval,
+    setPersonaPrimaryReferenceAsset: context.setPersonaPrimaryReferenceAsset,
     refreshStudioData: context.refreshStudioData,
   };
 }
@@ -596,6 +652,8 @@ export function useStudioContent() {
     sendContentIdeaToReview: context.sendContentIdeaToReview,
     archiveContentIdea: context.archiveContentIdea,
     regenerateContentIdea: context.regenerateContentIdea,
+    generateProductImagesForIdea: context.generateProductImagesForIdea,
+    updateProductImageAsset: context.updateProductImageAsset,
     approveReview: context.approveReview,
     rejectReview: context.rejectReview,
     requestVideoGeneration: context.requestVideoGeneration,

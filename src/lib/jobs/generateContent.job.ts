@@ -6,7 +6,7 @@ import type { ContentIdeaGeneratorInput, GeneratedContentIdeaCard } from "@/type
 
 export async function runGenerateContentJob(
   input: ContentIdeaGeneratorInput,
-  count = 5,
+  count = 1,
 ): Promise<JobResult<GeneratedContentIdeaCard[]>> {
   const jobId = createJobId("job-generate-content");
   const startedAt = new Date().toISOString();

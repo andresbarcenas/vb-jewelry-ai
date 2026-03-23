@@ -3,12 +3,23 @@ import {
   brandProfile,
   contentIdeas,
   personaProfiles,
-  productLibraryItems,
   publishingQueueEntries,
   videoReviewQueue,
 } from "../src/data/mock-studio";
 
 const prisma = new PrismaClient();
+const testProduct = {
+  id: "product-vb-test-studio",
+  productName: "VB Test Studio Necklace",
+  category: "Necklaces",
+  material: "14k gold vermeil with freshwater pearl accent",
+  color: "Soft gold",
+  styleTags: ["test product", "studio", "minimal"],
+  productNotes:
+    "Single development product used as a stable test item while we remove product mocks from content idea flows.",
+  imageDataUrl: null,
+  imageName: "vb-test-studio-necklace.png",
+};
 
 async function seed() {
   await prisma.$transaction([
@@ -16,6 +27,7 @@ async function seed() {
     prisma.personaAsset.deleteMany(),
     prisma.persona.deleteMany(),
     prisma.product.deleteMany(),
+    prisma.productImageAsset.deleteMany(),
     prisma.videoAsset.deleteMany(),
     prisma.contentIdea.deleteMany(),
     prisma.reviewItem.deleteMany(),
@@ -58,17 +70,7 @@ async function seed() {
   });
 
   await prisma.product.createMany({
-    data: productLibraryItems.map((product) => ({
-      id: product.id,
-      productName: product.productName,
-      category: product.category,
-      material: product.material,
-      color: product.color,
-      styleTags: product.styleTags,
-      productNotes: product.productNotes,
-      imageDataUrl: product.imageDataUrl,
-      imageName: product.imageName,
-    })),
+    data: [testProduct],
   });
 
   await prisma.contentIdea.createMany({
@@ -77,13 +79,13 @@ async function seed() {
       title: idea.title,
       personaId: idea.personaId,
       personaName: idea.personaName,
-      productId: null,
-      productName: idea.products[0] ?? null,
+      productId: testProduct.id,
+      productName: testProduct.productName,
       platform: "Instagram Reels",
       mood: null,
       contentType: null,
       status: idea.status,
-      products: idea.products,
+      products: [testProduct.productName],
       theme: idea.theme,
       concept: idea.concept,
       visualDirection: idea.visualDirection ?? null,
