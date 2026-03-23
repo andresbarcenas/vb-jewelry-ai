@@ -13,6 +13,7 @@ import type {
   ContentIdeaType,
   ContentMood,
   ContentPlatform,
+  VideoAssetStatus,
 } from "@/types/studio";
 
 interface FieldShellProps {
@@ -43,6 +44,7 @@ export function ContentIdeasPanel() {
     contentIdeas,
     generateIdeas,
     saveContentIdea,
+    generateVisualPlanForIdea,
     markContentIdeaReadyForReview,
     archiveContentIdea,
     regenerateContentIdea,
@@ -59,6 +61,7 @@ export function ContentIdeasPanel() {
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [recentIdeaIds, setRecentIdeaIds] = useState<string[]>([]);
+  const [expandedVisualPlanIdeaIds, setExpandedVisualPlanIdeaIds] = useState<string[]>([]);
 
   const platformOptions = generationOptions.platforms;
   const moodOptions = generationOptions.moods;
@@ -155,7 +158,7 @@ export function ContentIdeasPanel() {
 
   async function handleIdeaAction(
     ideaId: string,
-    action: "save" | "review" | "archive" | "regenerate",
+    action: "save" | "review" | "archive" | "regenerate" | "visual-plan",
   ) {
     setError("");
     setNotice("");
@@ -191,12 +194,36 @@ export function ContentIdeasPanel() {
           setError("We could not regenerate this idea.");
         }
       }
+
+      if (action === "visual-plan") {
+        const updated = await generateVisualPlanForIdea(ideaId);
+        if (updated?.visualPlan) {
+          setExpandedVisualPlanIdeaIds((current) =>
+            current.includes(ideaId) ? current : [...current, ideaId],
+          );
+          setNotice("Visual plan generated. Review the production details below.");
+        } else {
+          setError("We could not generate a visual plan for this idea.");
+        }
+      }
     } catch {
       setError("We could not complete that action. Please try again.");
     } finally {
       setActiveIdeaId(null);
       setActiveIdeaAction("");
     }
+  }
+
+  function toggleVisualPlan(ideaId: string) {
+    setExpandedVisualPlanIdeaIds((current) =>
+      current.includes(ideaId)
+        ? current.filter((entry) => entry !== ideaId)
+        : [...current, ideaId],
+    );
+  }
+
+  function formatVideoStatus(status: VideoAssetStatus) {
+    return status.charAt(0).toUpperCase() + status.slice(1);
   }
 
   if (personas.length === 0 || products.length === 0) {
@@ -378,124 +405,219 @@ export function ContentIdeasPanel() {
 
           <div className="grid gap-5 xl:grid-cols-2">
             {ideas.map((idea) => (
-            <SectionCard
-              key={idea.id}
-              title={idea.title}
-              description={`${idea.contentType ?? contentType} · ${idea.mood ?? mood} · ${idea.platform ?? platform}`}
-            >
-              <div className="space-y-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <StatusBadge value={idea.status} />
-                  <StatusBadge value={idea.priority} />
-                  {recentIdeaIds.includes(idea.id) ? (
-                    <span className="rounded-full border border-success/20 bg-success/10 px-2.5 py-1 text-xs font-semibold text-success">
-                      Just generated
-                    </span>
+              <SectionCard
+                key={idea.id}
+                title={idea.title}
+                description={`${idea.contentType ?? contentType} · ${idea.mood ?? mood} · ${idea.platform ?? platform}`}
+              >
+                <div className="space-y-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StatusBadge value={idea.status} />
+                    <StatusBadge value={idea.priority} />
+                    {recentIdeaIds.includes(idea.id) ? (
+                      <span className="rounded-full border border-success/20 bg-success/10 px-2.5 py-1 text-xs font-semibold text-success">
+                        Just generated
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                      Hook
+                    </p>
+                    <p className="mt-2 text-base font-semibold text-foreground">
+                      {idea.hook}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                      Concept summary
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                      {idea.concept}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                      Visual direction
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                      {idea.visualDirection ?? "No visual direction saved yet."}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                      Caption idea
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                      {idea.captionAngle}
+                    </p>
+                  </div>
+
+                  <div className="rounded-[22px] border border-border/80 bg-accent-soft/35 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                      CTA
+                    </p>
+                    <p className="mt-2 text-sm font-semibold text-foreground">
+                      {idea.cta ?? "No CTA saved yet."}
+                    </p>
+                  </div>
+
+                  <div className="rounded-[22px] border border-border/80 bg-white/80 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                      Video asset
+                    </p>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <StatusBadge
+                        value={formatVideoStatus(idea.videoAssets?.[0]?.status ?? "draft")}
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        {idea.videoAssets?.[0]?.videoUrl
+                          ? "Video file attached."
+                          : "Video not generated yet."}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      {idea.videoAssets?.[0]?.generationNotes ??
+                        "Generate a visual plan first, then connect a video provider in a future phase."}
+                    </p>
+                  </div>
+
+                  {idea.visualPlan && expandedVisualPlanIdeaIds.includes(idea.id) ? (
+                    <div className="space-y-3 rounded-[22px] border border-border/80 bg-white/90 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                        Visual plan
+                      </p>
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                          Scene description
+                        </p>
+                        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                          {idea.visualPlan.sceneDescription}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                          Lighting
+                        </p>
+                        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                          {idea.visualPlan.lighting}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                          Camera angle
+                        </p>
+                        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                          {idea.visualPlan.cameraAngle}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                          Motion
+                        </p>
+                        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                          {idea.visualPlan.motion}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                          Styling notes
+                        </p>
+                        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                          {idea.visualPlan.stylingNotes}
+                        </p>
+                      </div>
+                    </div>
                   ) : null}
+
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <button
+                      className="inline-flex items-center justify-center rounded-full border border-border/80 bg-white/85 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-55"
+                      disabled={activeIdeaId === idea.id}
+                      onClick={() => void handleIdeaAction(idea.id, "regenerate")}
+                      type="button"
+                    >
+                      {activeIdeaId === idea.id && activeIdeaAction === "regenerate"
+                        ? "Regenerating..."
+                        : "Regenerate"}
+                    </button>
+
+                    <button
+                      className="inline-flex items-center justify-center rounded-full border border-border/80 bg-white/85 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-55"
+                      disabled={activeIdeaId === idea.id || idea.status === "Saved"}
+                      onClick={() => void handleIdeaAction(idea.id, "save")}
+                      type="button"
+                    >
+                      {idea.status === "Saved"
+                        ? "Saved"
+                        : activeIdeaId === idea.id && activeIdeaAction === "save"
+                          ? "Saving..."
+                          : "Save"}
+                    </button>
+
+                    <button
+                      className="inline-flex items-center justify-center rounded-full border border-border/80 bg-white/85 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-55"
+                      disabled={activeIdeaId === idea.id || idea.status === "Archived"}
+                      onClick={() => void handleIdeaAction(idea.id, "visual-plan")}
+                      type="button"
+                    >
+                      {activeIdeaId === idea.id && activeIdeaAction === "visual-plan"
+                        ? "Building plan..."
+                        : idea.visualPlan
+                          ? "Regenerate Visual Plan"
+                          : "Generate Visual Plan"}
+                    </button>
+
+                    {idea.visualPlan ? (
+                      <button
+                        className="inline-flex items-center justify-center rounded-full border border-border/80 bg-white/85 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-white"
+                        onClick={() => toggleVisualPlan(idea.id)}
+                        type="button"
+                      >
+                        {expandedVisualPlanIdeaIds.includes(idea.id)
+                          ? "Hide Visual Plan"
+                          : "Show Visual Plan"}
+                      </button>
+                    ) : (
+                      <div className="hidden sm:block" />
+                    )}
+
+                    <button
+                      className="inline-flex items-center justify-center rounded-full border border-border/80 bg-white/85 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-55"
+                      disabled={
+                        activeIdeaId === idea.id ||
+                        idea.status === "Ready for Review" ||
+                        idea.status === "Archived"
+                      }
+                      onClick={() => void handleIdeaAction(idea.id, "review")}
+                      type="button"
+                    >
+                      {idea.status === "Ready for Review"
+                        ? "In Review Queue"
+                        : activeIdeaId === idea.id && activeIdeaAction === "review"
+                          ? "Sending..."
+                          : "Send to Review"}
+                    </button>
+
+                    <button
+                      className="inline-flex items-center justify-center rounded-full border border-border/80 bg-white/85 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-55"
+                      disabled={activeIdeaId === idea.id || idea.status === "Archived"}
+                      onClick={() => void handleIdeaAction(idea.id, "archive")}
+                      type="button"
+                    >
+                      {idea.status === "Archived"
+                        ? "Archived"
+                        : activeIdeaId === idea.id && activeIdeaAction === "archive"
+                          ? "Archiving..."
+                          : "Archive"}
+                    </button>
+                  </div>
                 </div>
-
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                    Hook
-                  </p>
-                  <p className="mt-2 text-base font-semibold text-foreground">
-                    {idea.hook}
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                    Concept summary
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    {idea.concept}
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                    Visual direction
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    {idea.visualDirection ?? "No visual direction saved yet."}
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                    Caption idea
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    {idea.captionAngle}
-                  </p>
-                </div>
-
-                <div className="rounded-[22px] border border-border/80 bg-accent-soft/35 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                    CTA
-                  </p>
-                  <p className="mt-2 text-sm font-semibold text-foreground">
-                    {idea.cta ?? "No CTA saved yet."}
-                  </p>
-                </div>
-
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <button
-                    className="inline-flex items-center justify-center rounded-full border border-border/80 bg-white/85 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-55"
-                    disabled={activeIdeaId === idea.id}
-                    onClick={() => void handleIdeaAction(idea.id, "regenerate")}
-                    type="button"
-                  >
-                    {activeIdeaId === idea.id && activeIdeaAction === "regenerate"
-                      ? "Regenerating..."
-                      : "Regenerate"}
-                  </button>
-
-                  <button
-                    className="inline-flex items-center justify-center rounded-full border border-border/80 bg-white/85 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-55"
-                    disabled={activeIdeaId === idea.id || idea.status === "Saved"}
-                    onClick={() => void handleIdeaAction(idea.id, "save")}
-                    type="button"
-                  >
-                    {idea.status === "Saved"
-                      ? "Saved"
-                      : activeIdeaId === idea.id && activeIdeaAction === "save"
-                        ? "Saving..."
-                        : "Save"}
-                  </button>
-
-                  <button
-                    className="inline-flex items-center justify-center rounded-full border border-border/80 bg-white/85 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-55"
-                    disabled={
-                      activeIdeaId === idea.id ||
-                      idea.status === "Ready for Review" ||
-                      idea.status === "Archived"
-                    }
-                    onClick={() => void handleIdeaAction(idea.id, "review")}
-                    type="button"
-                  >
-                    {idea.status === "Ready for Review"
-                      ? "In Review Queue"
-                      : activeIdeaId === idea.id && activeIdeaAction === "review"
-                        ? "Sending..."
-                        : "Send to Review"}
-                  </button>
-
-                  <button
-                    className="inline-flex items-center justify-center rounded-full border border-border/80 bg-white/85 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-55"
-                    disabled={activeIdeaId === idea.id || idea.status === "Archived"}
-                    onClick={() => void handleIdeaAction(idea.id, "archive")}
-                    type="button"
-                  >
-                    {idea.status === "Archived"
-                      ? "Archived"
-                      : activeIdeaId === idea.id && activeIdeaAction === "archive"
-                        ? "Archiving..."
-                        : "Archive"}
-                  </button>
-                </div>
-              </div>
-            </SectionCard>
+              </SectionCard>
             ))}
           </div>
         </div>

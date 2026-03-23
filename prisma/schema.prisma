@@ -72,14 +72,31 @@ model ContentIdea {
   theme           String
   concept         String   @db.Text
   visualDirection String?  @db.Text
+  visualPlan      String?  @db.Text
   hook            String   @db.Text
   captionAngle    String   @db.Text
   cta             String?  @db.Text
   priority        String
   autoSaved       Boolean  @default(true)
   targetLaunch    String
+  videoAssets     VideoAsset[]
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+model VideoAsset {
+  id              String      @id
+  contentIdeaId   String
+  contentIdea     ContentIdea @relation(fields: [contentIdeaId], references: [id], onDelete: Cascade)
+  status          String
+  videoUrl        String?     @db.Text
+  thumbnailUrl    String?     @db.Text
+  generationNotes String      @db.Text
+  provider        String
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([contentIdeaId])
 }
 
 model ReviewItem {

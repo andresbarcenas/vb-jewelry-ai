@@ -1,4 +1,5 @@
 import { contentIdeas as defaultContentIdeas } from "@/data/mock-studio";
+import { runGenerateVisualPlanJob } from "@/lib/jobs/generateVisualPlan.job";
 import { logEvent } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { getBrandProfile } from "@/lib/repositories/brand.repository";
@@ -19,6 +20,9 @@ import type {
   ContentIdeaType,
   ContentMood,
   ContentPlatform,
+  VideoAsset,
+  VideoAssetStatus,
+  VisualPlan,
 } from "@/types/studio";
 
 function normalizeStatus(value: unknown): ContentIdeaStatus {
@@ -72,6 +76,14 @@ function normalizeContentType(value: unknown): ContentIdeaType {
   return candidate ?? "lifestyle";
 }
 
+function normalizeVideoAssetStatus(value: unknown): VideoAssetStatus {
+  if (value === "draft" || value === "generating" || value === "ready" || value === "approved") {
+    return value;
+  }
+
+  return "draft";
+}
+
 function buildIdeaId(personaId: string, productId: string, index: number) {
   return `idea-${Date.now()}-${personaId.slice(0, 8)}-${productId.slice(0, 8)}-${index + 1}-${Math.random().toString(36).slice(2, 7)}`;
 }
@@ -84,6 +96,61 @@ function buildTargetLaunchDate() {
 function ensureText(value: string | undefined, fallback: string) {
   const normalized = value?.trim();
   return normalized && normalized.length > 0 ? normalized : fallback;
+}
+
+function buildVideoAssetId(contentIdeaId: string) {
+  return `video-asset-${contentIdeaId}`;
+}
+
+function serializeVisualPlan(plan: VisualPlan) {
+  return JSON.stringify({
+    sceneDescription: plan.sceneDescription.trim(),
+    lighting: plan.lighting.trim(),
+    cameraAngle: plan.cameraAngle.trim(),
+    motion: plan.motion.trim(),
+    stylingNotes: plan.stylingNotes.trim(),
+  });
+}
+
+function parseVisualPlan(raw: string | null): VisualPlan | undefined {
+  if (!raw) {
+    return undefined;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<VisualPlan>;
+
+    if (
+      typeof parsed.sceneDescription === "string" &&
+      typeof parsed.lighting === "string" &&
+      typeof parsed.cameraAngle === "string" &&
+      typeof parsed.motion === "string" &&
+      typeof parsed.stylingNotes === "string"
+    ) {
+      return {
+        sceneDescription: parsed.sceneDescription.trim(),
+        lighting: parsed.lighting.trim(),
+        cameraAngle: parsed.cameraAngle.trim(),
+        motion: parsed.motion.trim(),
+        stylingNotes: parsed.stylingNotes.trim(),
+      };
+    }
+  } catch {
+    // Fall back below if older data used plain text instead of JSON.
+  }
+
+  const normalized = raw.trim();
+  if (normalized.length === 0) {
+    return undefined;
+  }
+
+  return {
+    sceneDescription: normalized,
+    lighting: "Soft, polished lighting that keeps product details visible.",
+    cameraAngle: "Use a blend of close-up details and waist-up framing.",
+    motion: "Keep motion steady with gentle transitions.",
+    stylingNotes: "Keep styling minimal so the jewelry remains the hero.",
+  };
 }
 
 function mapRecordToIdea(record: {
@@ -101,15 +168,39 @@ function mapRecordToIdea(record: {
   theme: string;
   concept: string;
   visualDirection: string | null;
+  visualPlan: string | null;
   hook: string;
   captionAngle: string;
   cta: string | null;
   priority: string;
   autoSaved: boolean;
   targetLaunch: string;
+  videoAssets: Array<{
+    id: string;
+    contentIdeaId: string;
+    status: string;
+    videoUrl: string | null;
+    thumbnailUrl: string | null;
+    generationNotes: string;
+    provider: string;
+    createdAt: Date;
+    updatedAt: Date;
+  }>;
   createdAt: Date;
   updatedAt: Date;
 }): ContentIdea {
+  const videoAssets: VideoAsset[] = record.videoAssets.map((asset) => ({
+    id: asset.id,
+    contentIdeaId: asset.contentIdeaId,
+    status: normalizeVideoAssetStatus(asset.status),
+    videoUrl: asset.videoUrl ?? undefined,
+    thumbnailUrl: asset.thumbnailUrl ?? undefined,
+    generationNotes: asset.generationNotes,
+    provider: asset.provider,
+    createdAt: asset.createdAt.toISOString(),
+    updatedAt: asset.updatedAt.toISOString(),
+  }));
+
   return {
     id: record.id,
     title: record.title,
@@ -125,11 +216,13 @@ function mapRecordToIdea(record: {
     theme: record.theme,
     concept: record.concept,
     visualDirection: record.visualDirection ?? undefined,
+    visualPlan: parseVisualPlan(record.visualPlan),
     hook: record.hook,
     captionAngle: record.captionAngle,
     cta: record.cta ?? undefined,
     priority: normalizePriority(record.priority),
     autoSaved: record.autoSaved,
+    videoAssets,
     targetLaunch: record.targetLaunch,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),
@@ -157,6 +250,7 @@ function mapDefaultIdeaToCreateInput(
     theme: idea.theme,
     concept: idea.concept,
     visualDirection: idea.visualDirection ?? null,
+    visualPlan: idea.visualPlan ? serializeVisualPlan(idea.visualPlan) : null,
     hook: idea.hook,
     captionAngle: idea.captionAngle,
     cta: idea.cta ?? null,
@@ -164,6 +258,51 @@ function mapDefaultIdeaToCreateInput(
     autoSaved: idea.autoSaved ?? true,
     targetLaunch: idea.targetLaunch,
   };
+}
+
+function buildDraftVideoAsset(
+  contentIdeaId: string,
+  generationNotes = "Video not generated yet. Create a visual plan first.",
+) {
+  return {
+    id: buildVideoAssetId(contentIdeaId),
+    contentIdeaId,
+    status: "draft",
+    videoUrl: null,
+    thumbnailUrl: null,
+    generationNotes,
+    provider: "mock-video-pipeline",
+  };
+}
+
+async function ensureVideoAssetsForIdeas(contentIdeaIds: string[]) {
+  if (contentIdeaIds.length === 0) {
+    return;
+  }
+
+  const existingAssets = await prisma.videoAsset.findMany({
+    where: {
+      contentIdeaId: {
+        in: contentIdeaIds,
+      },
+    },
+    select: {
+      contentIdeaId: true,
+    },
+    distinct: ["contentIdeaId"],
+  });
+
+  const existingIds = new Set(existingAssets.map((asset) => asset.contentIdeaId));
+  const missingIds = contentIdeaIds.filter((ideaId) => !existingIds.has(ideaId));
+
+  if (missingIds.length === 0) {
+    return;
+  }
+
+  await prisma.videoAsset.createMany({
+    data: missingIds.map((ideaId) => buildDraftVideoAsset(ideaId)),
+    skipDuplicates: true,
+  });
 }
 
 async function seedDefaultIdeasIfEmpty() {
@@ -179,12 +318,36 @@ async function seedDefaultIdeasIfEmpty() {
   await prisma.contentIdea.createMany({
     data: defaultContentIdeas.map((idea) => mapDefaultIdeaToCreateInput(idea, productIdByName)),
   });
+
+  await prisma.videoAsset.createMany({
+    data: defaultContentIdeas.map((idea) =>
+      buildDraftVideoAsset(
+        idea.id,
+        "Video not generated yet. Create a visual plan when this idea is ready for pre-production.",
+      ),
+    ),
+    skipDuplicates: true,
+  });
 }
 
 export async function listContentIdeas(): Promise<ContentIdea[]> {
   await seedDefaultIdeasIfEmpty();
+  const ideaIds = (await prisma.contentIdea.findMany({
+    select: {
+      id: true,
+    },
+  })).map((item) => item.id);
+
+  await ensureVideoAssetsForIdeas(ideaIds);
 
   const records = await prisma.contentIdea.findMany({
+    include: {
+      videoAssets: {
+        orderBy: {
+          updatedAt: "desc",
+        },
+      },
+    },
     orderBy: {
       updatedAt: "desc",
     },
@@ -224,6 +387,7 @@ export async function generateAndSaveContentIdeas(
       idea.visualDirection,
       `Use close-up handcrafted detail shots for ${input.product.productName}.`,
     ),
+    visualPlan: null,
     hook: idea.hook,
     captionAngle: idea.captionAngle,
     cta: ensureText(
@@ -239,10 +403,27 @@ export async function generateAndSaveContentIdeas(
     data: records,
   });
 
+  await prisma.videoAsset.createMany({
+    data: records.map((record) =>
+      buildDraftVideoAsset(
+        record.id,
+        "Video not generated yet. Generate a visual plan before requesting video output.",
+      ),
+    ),
+    skipDuplicates: true,
+  });
+
   const savedIdeas = await prisma.contentIdea.findMany({
     where: {
       id: {
         in: records.map((item) => item.id),
+      },
+    },
+    include: {
+      videoAssets: {
+        orderBy: {
+          updatedAt: "desc",
+        },
       },
     },
     orderBy: {
@@ -290,6 +471,13 @@ export async function updateContentIdeaStatus(
     where: {
       id: ideaId,
     },
+    include: {
+      videoAssets: {
+        orderBy: {
+          updatedAt: "desc",
+        },
+      },
+    },
   });
 
   if (record && status === "Ready for Review") {
@@ -309,12 +497,121 @@ export async function updateContentIdeaStatus(
   return record ? mapRecordToIdea(record) : null;
 }
 
+export async function generateVisualPlanForIdea(
+  ideaId: string,
+): Promise<ContentIdea | null> {
+  const existing = await prisma.contentIdea.findUnique({
+    where: {
+      id: ideaId,
+    },
+    include: {
+      videoAssets: {
+        orderBy: {
+          updatedAt: "desc",
+        },
+      },
+    },
+  });
+
+  if (!existing) {
+    return null;
+  }
+
+  await prisma.videoAsset.upsert({
+    where: {
+      id: buildVideoAssetId(ideaId),
+    },
+    create: {
+      ...buildDraftVideoAsset(
+        ideaId,
+        "Generating visual plan. Video output will remain in draft until a provider is connected.",
+      ),
+      status: "generating",
+    },
+    update: {
+      status: "generating",
+      generationNotes:
+        "Generating visual plan. Video output will remain in draft until a provider is connected.",
+      provider: "mock-video-pipeline",
+    },
+  });
+
+  const jobResult = await runGenerateVisualPlanJob({
+    contentIdea: mapRecordToIdea(existing),
+  });
+
+  await prisma.contentIdea.update({
+    where: {
+      id: ideaId,
+    },
+    data: {
+      visualPlan: serializeVisualPlan(jobResult.data.visualPlan),
+      visualDirection: ensureText(
+        existing.visualDirection ?? undefined,
+        jobResult.data.visualPlan.sceneDescription,
+      ),
+    },
+  });
+
+  await prisma.videoAsset.upsert({
+    where: {
+      id: buildVideoAssetId(ideaId),
+    },
+    create: buildDraftVideoAsset(
+      ideaId,
+      "Visual plan is ready. Video not generated yet.",
+    ),
+    update: {
+      status: "draft",
+      generationNotes: "Visual plan is ready. Video not generated yet.",
+      provider: "mock-video-pipeline",
+    },
+  });
+
+  const refreshed = await prisma.contentIdea.findUnique({
+    where: {
+      id: ideaId,
+    },
+    include: {
+      videoAssets: {
+        orderBy: {
+          updatedAt: "desc",
+        },
+      },
+    },
+  });
+
+  if (!refreshed) {
+    return null;
+  }
+
+  logEvent({
+    type: "job_completed",
+    domain: "content",
+    action: "visual-plan-ready",
+    message: "Visual plan generated and saved for content idea.",
+    metadata: {
+      ideaId,
+      videoAssetId: buildVideoAssetId(ideaId),
+    },
+  });
+
+  return mapRecordToIdea(refreshed);
+}
+
 export async function regenerateContentIdea(
   ideaId: string,
 ): Promise<ContentIdeaGenerationResult | null> {
   const existing = await prisma.contentIdea.findUnique({
     where: {
       id: ideaId,
+    },
+    include: {
+      videoAssets: {
+        orderBy: {
+          updatedAt: "desc",
+        },
+      },
     },
   });
 
@@ -359,7 +656,7 @@ export async function regenerateContentIdea(
   });
   const nextIdea = generation.ideas[0];
 
-  const updated = await prisma.contentIdea.update({
+  await prisma.contentIdea.update({
     where: {
       id: ideaId,
     },
@@ -383,12 +680,55 @@ export async function regenerateContentIdea(
       platform: request.platform,
       mood: request.mood,
       contentType: request.contentType,
+      visualPlan: null,
       targetLaunch: buildTargetLaunchDate(),
+    },
+    include: {
+      videoAssets: {
+        orderBy: {
+          updatedAt: "desc",
+        },
+      },
     },
   });
 
+  await prisma.videoAsset.upsert({
+    where: {
+      id: buildVideoAssetId(ideaId),
+    },
+    create: buildDraftVideoAsset(
+      ideaId,
+      "Idea was regenerated. Create a fresh visual plan before video generation.",
+    ),
+    update: {
+      status: "draft",
+      videoUrl: null,
+      thumbnailUrl: null,
+      generationNotes:
+        "Idea was regenerated. Create a fresh visual plan before video generation.",
+      provider: "mock-video-pipeline",
+    },
+  });
+
+  const refreshed = await prisma.contentIdea.findUnique({
+    where: {
+      id: ideaId,
+    },
+    include: {
+      videoAssets: {
+        orderBy: {
+          updatedAt: "desc",
+        },
+      },
+    },
+  });
+
+  if (!refreshed) {
+    return null;
+  }
+
   return {
-    ideas: [mapRecordToIdea(updated)],
+    ideas: [mapRecordToIdea(refreshed)],
     source: generation.source,
     message: generation.message,
   };

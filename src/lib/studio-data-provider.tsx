@@ -19,6 +19,7 @@ import {
   archiveContentIdea,
   approveReview,
   generateIdeas,
+  generateVisualPlanForIdea,
   getGenerationOptions,
   listContentIdeas,
   listVideoReviewQueue,
@@ -100,6 +101,7 @@ interface StudioDataContextValue {
     input: ContentIdeaGeneratorInput,
   ) => Promise<ContentIdeaGenerationResult>;
   saveContentIdea: (ideaId: string) => Promise<void>;
+  generateVisualPlanForIdea: (ideaId: string) => Promise<ContentIdea | null>;
   markContentIdeaReadyForReview: (ideaId: string) => Promise<void>;
   sendContentIdeaToReview: (ideaId: string) => Promise<void>;
   archiveContentIdea: (ideaId: string) => Promise<void>;
@@ -325,6 +327,23 @@ export function StudioDataProvider({ children }: StudioDataProviderProps) {
     [refreshAnalyticsViews],
   );
 
+  const generateVisualPlanForIdeaAction = useCallback(
+    async (ideaId: string) => {
+      const updated = await generateVisualPlanForIdea(ideaId);
+
+      if (updated?.idea) {
+        setContentIdeasState((current) =>
+          current.map((item) => (item.id === updated.idea.id ? updated.idea : item)),
+        );
+        await refreshAnalyticsViews();
+        return updated.idea;
+      }
+
+      return null;
+    },
+    [refreshAnalyticsViews],
+  );
+
   const sendContentIdeaToReviewAction = useCallback(
     async (ideaId: string) => {
       const updated = await markContentIdeaReadyForReview(ideaId);
@@ -455,6 +474,7 @@ export function StudioDataProvider({ children }: StudioDataProviderProps) {
       resetProducts: resetProductsAction,
       generateIdeas: generateIdeasAction,
       saveContentIdea: saveContentIdeaAction,
+      generateVisualPlanForIdea: generateVisualPlanForIdeaAction,
       markContentIdeaReadyForReview: markContentIdeaReadyForReviewAction,
       sendContentIdeaToReview: sendContentIdeaToReviewAction,
       archiveContentIdea: archiveContentIdeaAction,
@@ -493,6 +513,7 @@ export function StudioDataProvider({ children }: StudioDataProviderProps) {
       resetProductsAction,
       generateIdeasAction,
       saveContentIdeaAction,
+      generateVisualPlanForIdeaAction,
       markContentIdeaReadyForReviewAction,
       sendContentIdeaToReviewAction,
       archiveContentIdeaAction,
@@ -560,6 +581,7 @@ export function useStudioContent() {
     generationOptions: context.generationOptions,
     generateIdeas: context.generateIdeas,
     saveContentIdea: context.saveContentIdea,
+    generateVisualPlanForIdea: context.generateVisualPlanForIdea,
     markContentIdeaReadyForReview: context.markContentIdeaReadyForReview,
     sendContentIdeaToReview: context.sendContentIdeaToReview,
     archiveContentIdea: context.archiveContentIdea,

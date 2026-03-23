@@ -1,5 +1,6 @@
 import type { AiPersonaProfile } from "@/types/persona";
 import type { ProductLibraryItem } from "@/types/product";
+import type { VideoAsset } from "@/types/video";
 
 export type ContentPlatform = "Instagram Reels";
 
@@ -55,6 +56,14 @@ export interface ContentIdeaGenerationResult {
   message: string;
 }
 
+export interface VisualPlan {
+  sceneDescription: string;
+  lighting: string;
+  cameraAngle: string;
+  motion: string;
+  stylingNotes: string;
+}
+
 export interface ContentIdea {
   id: string;
   title: string;
@@ -70,11 +79,13 @@ export interface ContentIdea {
   theme: string;
   concept: string;
   visualDirection?: string;
+  visualPlan?: VisualPlan;
   hook: string;
   captionAngle: string;
   cta?: string;
   priority: ContentIdeaPriority;
   autoSaved?: boolean;
+  videoAssets?: VideoAsset[];
   targetLaunch: string;
   createdAt?: string;
   updatedAt?: string;

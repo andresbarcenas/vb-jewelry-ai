@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.0] - 2026-03-22
+
+### Added
+- Added Phase 4 visual production foundation docs for technical and non-technical audiences (`docs/phase-4.md`, `docs/phase-4-simple.md`).
+- Added `visual-plan.service.ts` to generate structured visual plans from content ideas (`sceneDescription`, `lighting`, `cameraAngle`, `motion`, `stylingNotes`).
+- Added a new mocked async job for visual planning (`generateVisualPlan.job.ts`) and expanded job typing with `generate-visual-plan`.
+- Added `VideoAsset` types and status tracking (`draft`, `generating`, `ready`, `approved`) for future video pipeline support.
+
+### Changed
+- Extended Prisma schema with `ContentIdea.visualPlan` and the new `VideoAsset` model related to content ideas.
+- Updated seed and repository layers to persist visual plans, ensure draft video-asset records, and support pre-video pipeline state transitions.
+- Added a new content-idea API action (`generate_visual_plan`) and wired it through content services and studio provider state.
+- Updated Content Ideas cards with a `Generate Visual Plan` workflow, expandable visual-plan details, and a clear `Video not generated yet` placeholder section with status badges.
+- Updated README scope/docs references to reflect Phase 4 pipeline preparation.
+
 ## [1.2.1] - 2026-03-22
 
 ### Changed

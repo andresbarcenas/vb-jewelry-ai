@@ -1,5 +1,6 @@
 export type JobType =
   | "generate-content"
+  | "generate-visual-plan"
   | "generate-video"
   | "review-content"
   | "publish-content";

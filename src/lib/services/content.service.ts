@@ -150,6 +150,17 @@ export async function regenerateContentIdea(
   });
 }
 
+export async function generateVisualPlanForIdea(
+  ideaId: string,
+): Promise<IdeaActionResponse | null> {
+  return requestJson<IdeaActionResponse>(`/api/content-ideas/${ideaId}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      action: "generate_visual_plan",
+    }),
+  });
+}
+
 export async function listVideoReviewQueue(): Promise<VideoReviewItem[]> {
   return readPersistedValue(VIDEO_REVIEW_KEY, defaultVideoReviewQueue, cloneVideoQueue);
 }

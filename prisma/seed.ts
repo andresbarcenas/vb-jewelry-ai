@@ -15,6 +15,7 @@ async function seed() {
     prisma.brand.deleteMany(),
     prisma.persona.deleteMany(),
     prisma.product.deleteMany(),
+    prisma.videoAsset.deleteMany(),
     prisma.contentIdea.deleteMany(),
     prisma.reviewItem.deleteMany(),
     prisma.publishingQueue.deleteMany(),
@@ -85,12 +86,26 @@ async function seed() {
       theme: idea.theme,
       concept: idea.concept,
       visualDirection: idea.visualDirection ?? null,
+      visualPlan: idea.visualPlan ? JSON.stringify(idea.visualPlan) : null,
       hook: idea.hook,
       captionAngle: idea.captionAngle,
       cta: idea.cta ?? null,
       priority: idea.priority,
       autoSaved: idea.autoSaved ?? true,
       targetLaunch: idea.targetLaunch,
+    })),
+  });
+
+  await prisma.videoAsset.createMany({
+    data: contentIdeas.map((idea) => ({
+      id: `video-asset-${idea.id}`,
+      contentIdeaId: idea.id,
+      status: "draft",
+      videoUrl: null,
+      thumbnailUrl: null,
+      generationNotes:
+        "Video not generated yet. Create a visual plan first, then connect a video provider in a future phase.",
+      provider: "mock-video-pipeline",
     })),
   });
 

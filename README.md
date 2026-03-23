@@ -139,6 +139,12 @@ docker compose exec web pnpm db:seed
 - `docs/phase-3-simple.md`
   Plain-English summary of what AI generation now does and what is still mocked.
 
+- `docs/phase-4.md`
+  Technical summary of the visual-plan and video-asset pipeline foundation.
+
+- `docs/phase-4-simple.md`
+  Plain-English summary of how ideas move toward future video production.
+
 ## How mock data is wired
 
 1. Seed data starts in `src/data/mock-studio.ts`.
@@ -165,6 +171,6 @@ If you want to update business-facing content without changing app logic, start 
 
 - There is no login flow yet.
 - A local Postgres + Prisma foundation is now included.
-- There are no real external API calls yet (AI/video/storage/publishing are mocked).
+- Content idea generation uses OpenAI when configured; video/storage/publishing are still mocked.
 - Brand, Personas, and Product Library are prepared to persist through the backend layer.
 - The architecture is prepared for later integrations without changing the current owner-facing UI.

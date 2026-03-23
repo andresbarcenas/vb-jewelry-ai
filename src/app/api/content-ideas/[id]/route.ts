@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import {
+  generateVisualPlanForIdea,
   regenerateContentIdea,
   updateContentIdeaStatus,
 } from "@/lib/repositories/content-idea.repository";
@@ -15,7 +16,13 @@ interface Params {
 }
 
 interface UpdateIdeaPayload {
-  action?: "save" | "ready_for_review" | "send_to_review" | "archive" | "regenerate";
+  action?:
+    | "save"
+    | "ready_for_review"
+    | "send_to_review"
+    | "archive"
+    | "regenerate"
+    | "generate_visual_plan";
 }
 
 function mapStatus(
@@ -58,6 +65,23 @@ export async function PATCH(request: Request, { params }: Params) {
         idea: regenerated.ideas[0],
         source: regenerated.source,
         message: regenerated.message,
+      });
+    }
+
+    if (payload.action === "generate_visual_plan") {
+      const updated = await generateVisualPlanForIdea(id);
+
+      if (!updated) {
+        return NextResponse.json(
+          { message: "Idea not found." },
+          { status: 404 },
+        );
+      }
+
+      return NextResponse.json({
+        idea: updated,
+        source: "mock_fallback",
+        message: "Visual plan generated. Video is still in draft until a video provider is connected.",
       });
     }
 
